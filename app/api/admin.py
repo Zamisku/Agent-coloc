@@ -19,9 +19,6 @@ router = APIRouter(prefix="/api", tags=["admin"])
 
 
 MODELS = [
-    {"id": "gpt-4o", "name": "GPT-4o", "provider": "openai", "description": "最强推理能力"},
-    {"id": "gpt-4o-mini", "name": "GPT-4o Mini", "provider": "openai", "description": "快速经济"},
-    {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "provider": "openai", "description": "基础能力"},
     {"id": "custom", "name": "自建模型", "provider": "custom", "description": "自建推理服务"},
 ]
 

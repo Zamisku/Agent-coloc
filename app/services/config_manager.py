@@ -21,9 +21,9 @@ CONFIG_SCHEMA = {
         "group": "LLM 配置",
         "label": "模型名称",
         "type": "select",
-        "options": ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo", "custom"],
+        "options": ["custom"],
         "description": "当前使用的 LLM 模型",
-        "default": "gpt-4o",
+        "default": "custom",
     },
     "OPENAI_BASE_URL": {
         "group": "LLM 配置",
