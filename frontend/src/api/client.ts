@@ -146,4 +146,18 @@ export const api = {
 
   resetSettings: (): Promise<{ settings: ConfigValues }> =>
     request('/api/settings/reset', { method: 'POST', body: JSON.stringify({ confirm: true }) }),
+
+  // Skills APIs
+  getSkills: (): Promise<{ skills: Array<{ name: string; description: string; parameters: any[] }> }> =>
+    request('/api/skills'),
+
+  callSkill: (skill: string, params: Record<string, unknown>): Promise<{ success: boolean; result: string | null; error: string | null }> =>
+    request('/api/skills/call', { method: 'POST', body: JSON.stringify({ skill, params }) }),
+
+  // MCP APIs
+  getMcpTools: (): Promise<{ tools: Array<{ name: string; description: string; inputSchema: any }> }> =>
+    request('/api/mcp/tools'),
+
+  callMcpTool: (name: string, arguments_: Record<string, unknown> = {}): Promise<any> =>
+    request('/api/mcp/call', { method: 'POST', body: JSON.stringify({ name, arguments: arguments_ }) }),
 }

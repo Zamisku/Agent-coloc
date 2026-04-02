@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { MessageSquare, Cpu, BarChart3, FileCode, Settings } from 'lucide-react'
+import { MessageSquare, Cpu, BarChart3, FileCode, Settings, Wrench } from 'lucide-react'
 
 const nav = [
   { to: '/chat', icon: MessageSquare, label: '对话测试' },
   { to: '/models', icon: Cpu, label: '模型管理' },
   { to: '/monitor', icon: BarChart3, label: '系统监控' },
   { to: '/prompts', icon: FileCode, label: 'Prompt 管理' },
+  { to: '/tools', icon: Wrench, label: '工具管理' },
   { to: '/settings', icon: Settings, label: '系统设置' },
 ]
 
