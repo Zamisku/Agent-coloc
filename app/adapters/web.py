@@ -16,13 +16,17 @@ class WebAdapter(BaseAdapter):
     def to_unified(self, raw_message: dict) -> UnifiedMessage:
         request = ChatRequest(**raw_message)
         session_id = request.session_id or str(uuid.uuid4())
+        metadata = {}
+        if request.intent:
+            metadata['user_intent'] = request.intent
+            metadata['intent_mode'] = request.intent_mode or 'auto'
         return UnifiedMessage(
             session_id=session_id,
             user_id=request.user_id,
             channel=ChannelType.web,
             content=request.message,
             timestamp=datetime.now(),
-            metadata={},
+            metadata=metadata,
         )
 
     def from_unified(self, response: UnifiedResponse) -> dict:

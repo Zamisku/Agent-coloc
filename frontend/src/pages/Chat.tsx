@@ -31,7 +31,7 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streaming?.text])
 
-  const handleSend = async (content: string) => {
+  const handleSend = async (content: string, intent?: string, intentMode?: string) => {
     const currentSessionId = sessionId || undefined
 
     setStreaming({ text: '', debug: null, done: false, error: null })
@@ -41,8 +41,17 @@ export default function ChatPage() {
     let newSessionId = currentSessionId
 
     try {
+      const requestBody: { message: string; session_id?: string; intent?: string; intent_mode?: string } = {
+        message: content,
+        session_id: currentSessionId,
+      }
+      if (intent && intentMode) {
+        requestBody.intent = intent
+        requestBody.intent_mode = intentMode
+      }
+
       await api.chatStream(
-        { message: content, session_id: currentSessionId },
+        requestBody,
         (text) => {
           fullText += text
           setStreaming(s => s ? { ...s, text: fullText } : null)

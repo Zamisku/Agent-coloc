@@ -94,6 +94,8 @@ async def chat(request: ChatRequest) -> ChatResponse:
         "response": None,
         "sources": [],
         "need_clarification": False,
+        "user_intent": unified.metadata.get('user_intent'),
+        "intent_mode": unified.metadata.get('intent_mode'),
     }
 
     result = await _run_planning_phase(initial_state)
@@ -171,6 +173,8 @@ async def chat_stream_generator(request: ChatRequest) -> AsyncIterator[dict]:
         "response": None,
         "sources": [],
         "need_clarification": False,
+        "user_intent": unified.metadata.get('user_intent'),
+        "intent_mode": unified.metadata.get('intent_mode'),
     }
 
     result = await _run_planning_phase(initial_state)

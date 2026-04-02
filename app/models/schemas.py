@@ -77,6 +77,8 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     message: Annotated[str, Field(min_length=1, max_length=500)]
     user_id: Optional[str] = None
+    intent: Optional[str] = None
+    intent_mode: Optional[str] = None  # 'auto' | 'force' | 'suggest'
 
     @field_validator("message")
     @classmethod

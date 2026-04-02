@@ -86,6 +86,8 @@ export interface ChatRequest {
   message: string
   session_id?: string
   user_id?: string
+  intent?: string
+  intent_mode?: 'auto' | 'force' | 'suggest'
 }
 
 export interface ChatResponse {
