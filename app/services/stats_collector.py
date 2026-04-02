@@ -4,6 +4,7 @@ from typing import Optional
 import time
 
 from app.models.schemas import RequestLog
+from app.services.config_manager import config_manager
 
 
 class StatsCollector:
@@ -66,7 +67,7 @@ class StatsCollector:
             "error_rate": round(error_rate, 4),
             "intent_distribution": dict(self._intent_counters),
             "hourly_requests": hourly,
-            "current_model": "gpt-4o",
+            "current_model": config_manager.get("LLM_PROVIDER") or "deepseek",
             "uptime_seconds": int(time.time() - self._start_time),
         }
 
