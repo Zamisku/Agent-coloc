@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { IntentSelector } from '../intent/IntentSelector'
 
 interface Props {
-  onSend: (text: string, intent?: string, intentMode?: string) => void
+  onSend: (text: string, intent?: string, intentMode?: 'auto' | 'force' | 'suggest') => void
   disabled?: boolean
   intentSelectorEnabled?: boolean
 }

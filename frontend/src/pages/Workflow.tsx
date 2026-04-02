@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api/client'
 import type { DebugInfo } from '../types'
 
 interface NodeStatus {
@@ -41,7 +40,7 @@ function updateNodeStatus(nodes: NodeStatus[], activeName: string): NodeStatus[]
 
 export default function WorkflowPage() {
   const [nodes, setNodes] = useState<NodeStatus[]>(getInitialNodes())
-  const [currentDebug, setCurrentDebug] = useState<DebugInfo | null>(null)
+  const [currentDebug] = useState<DebugInfo | null>(null)
 
   useEffect(() => {
     // 模拟实时更新：每 3 秒轮询一次当前 debug 状态
