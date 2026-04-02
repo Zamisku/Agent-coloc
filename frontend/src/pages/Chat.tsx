@@ -81,7 +81,8 @@ export default function ChatPage() {
       }
 
       setStreaming({ text: fullText, debug: lastDebug, done: true })
-      sendStreamMessage(fullText, () => {})
+      // 将用户消息和助手回复添加到 messages 中
+      sendStreamMessage(content, fullText)
     } catch (e) {
       console.error(e)
       setStreaming(null)

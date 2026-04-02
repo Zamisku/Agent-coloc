@@ -7,7 +7,7 @@ interface ChatState {
   sessionId: string
   loading: boolean
   sendMessage: (content: string) => Promise<void>
-  sendStreamMessage: (content: string, onToken: (t: string) => void) => Promise<void>
+  sendStreamMessage: (userContent: string, assistantContent: string) => Promise<void>
   clearMessages: () => void
 }
 
@@ -35,30 +35,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendStreamMessage: async (content: string, onToken: (t: string) => void) => {
-    set({ loading: true })
-    const { sessionId } = get()
-    let full = ''
-    try {
-      await api.chatStream(
-        { message: content, session_id: sessionId || undefined },
-        token => {
-          full += token
-          onToken(token)
-        },
-        () => {}
-      )
-      set(s => ({
-        messages: [
-          ...s.messages,
-          { role: 'user', content, timestamp: new Date().toISOString() },
-          { role: 'assistant', content: full, timestamp: new Date().toISOString() },
-        ],
-        loading: false,
-      }))
-    } catch {
-      set({ loading: false })
-    }
+  sendStreamMessage: async (userContent: string, assistantContent: string) => {
+    // userContent 和 assistantContent 已经在 Chat.tsx 的 handleSend 中通过流式读取收集完毕
+    // 这里直接使用已收集的内容更新 messages
+    set(s => ({
+      messages: [
+        ...s.messages,
+        { role: 'user', content: userContent, timestamp: new Date().toISOString() },
+        { role: 'assistant', content: assistantContent, timestamp: new Date().toISOString() },
+      ],
+      loading: false,
+    }))
   },
 
   clearMessages: () => set({ messages: [], sessionId: '' }),

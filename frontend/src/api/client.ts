@@ -39,20 +39,43 @@ export const api = {
       const decoder = new TextDecoder()
       if (!reader) return
 
+      let eventType = ''
+      let dataBuffer = ''
+
+      const processEvent = () => {
+        if (eventType === 'message') {
+          onMessage(dataBuffer)
+        } else if (eventType === 'debug') {
+          try {
+            onDebug(JSON.parse(dataBuffer))
+          } catch {}
+        }
+        eventType = ''
+        dataBuffer = ''
+      }
+
       const read = () => {
         reader.read().then(({ done, value }) => {
           if (done) return
-          const chunk = decoder.decode(value)
-          chunk.split('\n').forEach(line => {
-            if (!line.startsWith('event:')) return
-            const [, type] = line.split('event:')
-            reader.read().then(({ done: d2, value: v2 }) => {
-              if (d2) return
-              const data = decoder.decode(v2)
-              if (type.trim() === 'message') onMessage(data)
-              if (type.trim() === 'debug') onDebug(JSON.parse(data))
-            })
-          })
+          const chunk = decoder.decode(value, { stream: true })
+          const lines = chunk.split('\n')
+
+          for (const line of lines) {
+            if (line.startsWith('event:')) {
+              // 如果有之前的 event 但没有遇到空行，先处理它
+              if (eventType && dataBuffer) {
+                processEvent()
+              }
+              eventType = line.slice(6).trim()
+            } else if (line.startsWith('data:')) {
+              dataBuffer = line.slice(5).trim()
+            } else if (line === '') {
+              // 空行表示事件结束
+              if (eventType && dataBuffer) {
+                processEvent()
+              }
+            }
+          }
           read()
         })
       }
