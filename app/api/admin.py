@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
+from app.logging_config import get_logger
 from app.services.config_manager import config_manager, CONFIG_SCHEMA
 from app.services.llm_client import llm_client
 from app.services.llm import (
@@ -128,9 +129,22 @@ async def set_current_model(body: dict):
     if not provider:
         raise HTTPException(400, "需要 provider")
 
+    logger = get_logger(__name__)
+    logger.info("switch_model_request", provider=provider, model=model_id)
+
     await update_provider_config(provider, model=model_id)
+    logger.info("update_provider_config_done", provider=provider, model=model_id)
+
     await set_active_provider(provider)
+    logger.info("set_active_provider_done", provider=provider)
+
     llm_router.reset_providers()
+    logger.info("providers_reset_done")
+
+    # 验证更新
+    new_provider = get_active_provider()
+    new_model = config_manager.get(f"PROVIDER_{provider.upper()}_MODEL")
+    logger.info("switch_model_verification", new_provider=new_provider, new_model=new_model)
 
     return {"current": f"{provider}:{model_id}", "provider": provider, "model": model_id}
 
