@@ -25,9 +25,14 @@ async def classify_intent(state: dict) -> dict:
         try:
             intent = IntentType(user_intent).value
         except ValueError:
-            intent = IntentType.unclear.value
+            # 意图无效，拒绝并跳过后续流程
+            return {
+                "intent": "unclear",
+                "domain": "general",
+                "intent_rejected": True,
+            }
         domain = INTENT_TO_DOMAIN.get(IntentType(intent), DomainType.general).value
-        return {"intent": intent, "domain": domain}
+        return {"intent": intent, "domain": domain, "intent_rejected": False}
 
     history_str = _format_history(chat_history)
     messages = [

@@ -11,6 +11,13 @@ from app.agent.nodes.fallback import fallback_response
 from app.agent.nodes.tool_caller import call_tools
 
 
+def _route_after_classify(state: AgentState) -> str:
+    """根据意图分类结果决定下一步"""
+    if state.get("intent_rejected"):
+        return "fallback"
+    return "rewrite"
+
+
 def _route_by_quality(state: AgentState) -> str:
     quality = state.get("retrieval_quality", "no_result")
     if quality == "sufficient":
@@ -43,7 +50,14 @@ def build_agent_graph() -> StateGraph:
 
     graph.set_entry_point("classify")
 
-    graph.add_edge("classify", "rewrite")
+    graph.add_conditional_edges(
+        "classify",
+        _route_after_classify,
+        {
+            "rewrite": "rewrite",
+            "fallback": "fallback",
+        },
+    )
     graph.add_edge("rewrite", "retrieve")
     graph.add_edge("retrieve", "evaluate")
 

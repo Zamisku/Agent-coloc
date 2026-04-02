@@ -23,3 +23,4 @@ class AgentState(TypedDict, total=False):
     # User-specified intent
     user_intent: Optional[str]  # 用户指定的意图
     intent_mode: Optional[str]  # 'auto' | 'force' | 'suggest'
+    intent_rejected: bool  # 强制意图无效时被拒绝

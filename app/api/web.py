@@ -96,6 +96,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
         "need_clarification": False,
         "user_intent": unified.metadata.get('user_intent'),
         "intent_mode": unified.metadata.get('intent_mode'),
+        "intent_rejected": False,
     }
 
     result = await _run_planning_phase(initial_state)
@@ -175,6 +176,7 @@ async def chat_stream_generator(request: ChatRequest) -> AsyncIterator[dict]:
         "need_clarification": False,
         "user_intent": unified.metadata.get('user_intent'),
         "intent_mode": unified.metadata.get('intent_mode'),
+        "intent_rejected": False,
     }
 
     result = await _run_planning_phase(initial_state)
