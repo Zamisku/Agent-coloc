@@ -109,7 +109,7 @@ class LLMRouter:
 
         # 检查所有 provider
         results = {}
-        for name in ["deepseek", "minimax", "openai"]:
+        for name in ["deepseek", "minimax"]:
             provider = self._get_provider(name)
             if provider:
                 ok = await provider.health_check()

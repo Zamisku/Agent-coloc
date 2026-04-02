@@ -13,12 +13,8 @@ class Settings(BaseSettings):
     PROVIDER_MINIMAX_MODEL: str = "MiniMax-M2.7"
     PROVIDER_MINIMAX_BASE_URL: str = "https://api.minimaxi.com/v1"
 
-    PROVIDER_OPENAI_API_KEY: str = ""
-    PROVIDER_OPENAI_MODEL: str = "gpt-4o"
-    PROVIDER_OPENAI_BASE_URL: str = "https://api.openai.com/v1"
-
     # Legacy / Fallback
-    OPENAI_API_KEY: str
+    OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o"
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     REDIS_URL: str = "redis://localhost:6379/0"

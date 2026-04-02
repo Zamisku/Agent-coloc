@@ -6,12 +6,9 @@ from typing import Any
 from app.services.config_manager import config_manager
 from app.services.llm.deepseek import DeepSeekProvider
 from app.services.llm.minimax import MiniMaxProvider
-from app.services.llm.openai import OpenAIProvider
-
-
 # Provider 配置前缀
 PROVIDER_PREFIX = "PROVIDER_"
-PROVIDER_NAMES = ["deepseek", "minimax", "openai"]
+PROVIDER_NAMES = ["deepseek", "minimax"]
 
 
 def _get_provider_config(provider: str) -> dict[str, Any]:
@@ -35,15 +32,11 @@ def _get_provider_defaults(provider: str) -> dict[str, Any]:
             "model": "MiniMax-M2.7",
             "base_url": "https://api.minimaxi.com/v1",
         },
-        "openai": {
-            "model": "gpt-4o",
-            "base_url": "https://api.openai.com/v1",
-        },
     }
     return defaults.get(provider, {})
 
 
-def create_provider(provider: str, **overrides) -> DeepSeekProvider | MiniMaxProvider | OpenAIProvider | None:
+def create_provider(provider: str, **overrides) -> DeepSeekProvider | MiniMaxProvider | None:
     """创建 provider 实例"""
     config = _get_provider_config(provider)
     defaults = _get_provider_defaults(provider)
@@ -59,8 +52,6 @@ def create_provider(provider: str, **overrides) -> DeepSeekProvider | MiniMaxPro
         return DeepSeekProvider(api_key=api_key, model=model, base_url=base_url, temperature=temperature, max_tokens=max_tokens)
     elif provider == "minimax":
         return MiniMaxProvider(api_key=api_key, model=model, base_url=base_url, temperature=temperature, max_tokens=max_tokens)
-    elif provider == "openai":
-        return OpenAIProvider(api_key=api_key, model=model, base_url=base_url, temperature=temperature, max_tokens=max_tokens)
 
     return None
 

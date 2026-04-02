@@ -70,7 +70,7 @@ async def get_provider_models(name: str):
 @router.put("/providers/{name}/config")
 async def update_provider_config_endpoint(name: str, body: dict):
     """更新 Provider 配置"""
-    if name not in ("deepseek", "minimax", "openai"):
+    if name not in ("deepseek", "minimax"):
         raise HTTPException(400, "无效的 Provider 名称")
 
     api_key = body.get("api_key")
@@ -213,7 +213,7 @@ async def batch_update_settings(body: dict):
 
     # 检查是否涉及 LLM 配置
     llm_keys = {"LLM_MODE", "LLM_PROVIDER", "MULTI_PROVIDERS",
-                 "PROVIDER_DEEPSEEK_API_KEY", "PROVIDER_MINIMAX_API_KEY", "PROVIDER_OPENAI_API_KEY"}
+                 "PROVIDER_DEEPSEEK_API_KEY", "PROVIDER_MINIMAX_API_KEY"}
     if llm_keys & set(updates.keys()):
         llm_router.reset_providers()
 

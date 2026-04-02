@@ -23,7 +23,7 @@ CONFIG_SCHEMA = {
         "group": "LLM 配置",
         "label": "当前 Provider",
         "type": "select",
-        "options": ["deepseek", "minimax", "openai"],
+        "options": ["deepseek", "minimax"],
         "description": "单源模式下使用的 Provider",
         "default": "deepseek",
     },
@@ -79,29 +79,6 @@ CONFIG_SCHEMA = {
         "type": "url",
         "description": "MiniMax API 地址",
         "default": "https://api.minimaxi.com/v1",
-    },
-
-    # === OpenAI ===
-    "PROVIDER_OPENAI_API_KEY": {
-        "group": "OpenAI",
-        "label": "API Key",
-        "type": "secret",
-        "description": "OpenAI API 密钥",
-    },
-    "PROVIDER_OPENAI_MODEL": {
-        "group": "OpenAI",
-        "label": "模型",
-        "type": "select",
-        "options": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
-        "description": "OpenAI 模型",
-        "default": "gpt-4o",
-    },
-    "PROVIDER_OPENAI_BASE_URL": {
-        "group": "OpenAI",
-        "label": "API 地址",
-        "type": "url",
-        "description": "OpenAI API 地址",
-        "default": "https://api.openai.com/v1",
     },
 
     # === 全局参数 ===

@@ -1,7 +1,6 @@
 from app.services.llm.base import BaseProvider
 from app.services.llm.deepseek import DeepSeekProvider
 from app.services.llm.minimax import MiniMaxProvider
-from app.services.llm.openai import OpenAIProvider
 from app.services.llm.router import LLMRouter, llm_router
 from app.services.llm.config import (
     get_llm_mode,
@@ -18,7 +17,6 @@ __all__ = [
     "BaseProvider",
     "DeepSeekProvider",
     "MiniMaxProvider",
-    "OpenAIProvider",
     "LLMRouter",
     "llm_router",
     "get_llm_mode",

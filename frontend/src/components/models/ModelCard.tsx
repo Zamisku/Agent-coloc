@@ -11,7 +11,6 @@ export function ModelCard({ model, isCurrent, onSwitch }: Props) {
   const providerColors: Record<string, string> = {
     deepseek: 'bg-blue-100 text-blue-700',
     minimax: 'bg-orange-100 text-orange-700',
-    openai: 'bg-green-100 text-green-700',
   }
 
   return (
