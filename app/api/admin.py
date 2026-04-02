@@ -19,7 +19,13 @@ router = APIRouter(prefix="/api", tags=["admin"])
 
 
 MODELS = [
-    {"id": "custom", "name": "自建模型", "provider": "custom", "description": "自建推理服务"},
+    {"id": "MiniMax-M2.7", "name": "MiniMax-M2.7", "provider": "minimax", "description": "最强推理能力（约60TPS）"},
+    {"id": "MiniMax-M2.7-highspeed", "name": "MiniMax-M2.7 极速版", "provider": "minimax", "description": "极速版，更快更敏捷（约100TPS）"},
+    {"id": "MiniMax-M2.5", "name": "MiniMax-M2.5", "provider": "minimax", "description": "顶尖性能与极致性价比（约60TPS）"},
+    {"id": "MiniMax-M2.5-highspeed", "name": "MiniMax-M2.5 极速版", "provider": "minimax", "description": "极速版，更快更敏捷（约100TPS）"},
+    {"id": "MiniMax-M2.1", "name": "MiniMax-M2.1", "provider": "minimax", "description": "强大多语言编程能力（约60TPS）"},
+    {"id": "MiniMax-M2.1-highspeed", "name": "MiniMax-M2.1 极速版", "provider": "minimax", "description": "极速版，更快更敏捷（约100TPS）"},
+    {"id": "MiniMax-M2", "name": "MiniMax-M2", "provider": "minimax", "description": "专为高效编码与Agent工作流而生"},
 ]
 
 
