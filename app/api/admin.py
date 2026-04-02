@@ -19,6 +19,8 @@ router = APIRouter(prefix="/api", tags=["admin"])
 
 
 MODELS = [
+    {"id": "deepseek-chat", "name": "DeepSeek-V3 (非思考)", "provider": "deepseek", "description": "通用对话，支持 Tool Calls"},
+    {"id": "deepseek-reasoner", "name": "DeepSeek-V3 (思考)", "provider": "deepseek", "description": "思考模式，支持复杂推理"},
     {"id": "MiniMax-M2.7", "name": "MiniMax-M2.7", "provider": "minimax", "description": "最强推理能力（约60TPS）"},
     {"id": "MiniMax-M2.7-highspeed", "name": "MiniMax-M2.7 极速版", "provider": "minimax", "description": "极速版，更快更敏捷（约100TPS）"},
     {"id": "MiniMax-M2.5", "name": "MiniMax-M2.5", "provider": "minimax", "description": "顶尖性能与极致性价比（约60TPS）"},
