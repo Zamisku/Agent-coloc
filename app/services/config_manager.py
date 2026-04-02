@@ -10,28 +10,101 @@ from app.config import settings
 
 
 CONFIG_SCHEMA = {
-    "OPENAI_API_KEY": {
+    # === LLM 模式 ===
+    "LLM_MODE": {
         "group": "LLM 配置",
-        "label": "OpenAI API Key",
-        "type": "secret",
-        "description": "OpenAI API 密钥",
-        "required": True,
-    },
-    "OPENAI_MODEL": {
-        "group": "LLM 配置",
-        "label": "模型名称",
+        "label": "LLM 模式",
         "type": "select",
-        "options": ["deepseek-chat", "deepseek-reasoner", "MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5", "MiniMax-M2.5-highspeed", "MiniMax-M2.1", "MiniMax-M2.1-highspeed", "MiniMax-M2"],
-        "description": "当前使用的 LLM 模型",
+        "options": ["single", "multi"],
+        "description": "single: 单源模式, multi: 多源并发",
+        "default": "single",
+    },
+    "LLM_PROVIDER": {
+        "group": "LLM 配置",
+        "label": "当前 Provider",
+        "type": "select",
+        "options": ["deepseek", "minimax", "openai"],
+        "description": "单源模式下使用的 Provider",
+        "default": "deepseek",
+    },
+    "MULTI_PROVIDERS": {
+        "group": "LLM 配置",
+        "label": "多源 Providers",
+        "type": "text",
+        "description": "多源模式启用的 Providers，逗号分隔",
+        "default": "deepseek,minimax",
+    },
+
+    # === DeepSeek ===
+    "PROVIDER_DEEPSEEK_API_KEY": {
+        "group": "DeepSeek",
+        "label": "API Key",
+        "type": "secret",
+        "description": "DeepSeek API 密钥",
+    },
+    "PROVIDER_DEEPSEEK_MODEL": {
+        "group": "DeepSeek",
+        "label": "模型",
+        "type": "select",
+        "options": ["deepseek-chat", "deepseek-reasoner"],
+        "description": "DeepSeek 模型",
         "default": "deepseek-chat",
     },
-    "OPENAI_BASE_URL": {
-        "group": "LLM 配置",
+    "PROVIDER_DEEPSEEK_BASE_URL": {
+        "group": "DeepSeek",
         "label": "API 地址",
         "type": "url",
-        "description": "OpenAI 兼容的 API 地址",
+        "description": "DeepSeek API 地址",
         "default": "https://api.deepseek.com",
     },
+
+    # === MiniMax ===
+    "PROVIDER_MINIMAX_API_KEY": {
+        "group": "MiniMax",
+        "label": "API Key",
+        "type": "secret",
+        "description": "MiniMax API 密钥",
+    },
+    "PROVIDER_MINIMAX_MODEL": {
+        "group": "MiniMax",
+        "label": "模型",
+        "type": "select",
+        "options": ["MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5", "MiniMax-M2.5-highspeed", "MiniMax-M2.1", "MiniMax-M2.1-highspeed", "MiniMax-M2"],
+        "description": "MiniMax 模型",
+        "default": "MiniMax-M2.7",
+    },
+    "PROVIDER_MINIMAX_BASE_URL": {
+        "group": "MiniMax",
+        "label": "API 地址",
+        "type": "url",
+        "description": "MiniMax API 地址",
+        "default": "https://api.minimaxi.com/v1",
+    },
+
+    # === OpenAI ===
+    "PROVIDER_OPENAI_API_KEY": {
+        "group": "OpenAI",
+        "label": "API Key",
+        "type": "secret",
+        "description": "OpenAI API 密钥",
+    },
+    "PROVIDER_OPENAI_MODEL": {
+        "group": "OpenAI",
+        "label": "模型",
+        "type": "select",
+        "options": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+        "description": "OpenAI 模型",
+        "default": "gpt-4o",
+    },
+    "PROVIDER_OPENAI_BASE_URL": {
+        "group": "OpenAI",
+        "label": "API 地址",
+        "type": "url",
+        "description": "OpenAI API 地址",
+        "default": "https://api.openai.com/v1",
+    },
+
+    # === 全局参数 ===
     "LLM_TEMPERATURE": {
         "group": "LLM 配置",
         "label": "生成温度",
@@ -39,7 +112,7 @@ CONFIG_SCHEMA = {
         "min": 0,
         "max": 1,
         "step": 0.1,
-        "description": "越低越稳定，MiniMax推荐1.0",
+        "description": "越低越稳定，DeepSeek推荐1.0",
         "default": "1.0",
     },
     "LLM_MAX_TOKENS": {

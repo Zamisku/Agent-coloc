@@ -1,24 +1,15 @@
 from __future__ import annotations
 
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator
 
-import openai
-from openai import AsyncOpenAI
-
-from app.services.config_manager import config_manager
+from app.services.llm import llm_router
 
 
 class LLMClient:
-    def __init__(self) -> None:
-        self._client: AsyncOpenAI | None = None
+    """LLM 客户端（兼容层），委托给 llm_router 处理"""
 
-    def _ensure_client(self) -> AsyncOpenAI:
-        if self._client is None:
-            self._client = AsyncOpenAI(
-                api_key=config_manager.get("OPENAI_API_KEY") or "",
-                base_url=config_manager.get("OPENAI_BASE_URL") or "https://api.openai.com/v1",
-            )
-        return self._client
+    def __init__(self):
+        self._client = None  # 兼容旧代码
 
     async def generate(
         self,
@@ -26,51 +17,30 @@ class LLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> str:
-        if temperature is None:
-            temperature = config_manager.get_float("LLM_TEMPERATURE")
-        if max_tokens is None:
-            max_tokens = config_manager.get_int("LLM_MAX_TOKENS")
-
-        client = self._ensure_client()
-        response = await client.chat.completions.create(
-            model=config_manager.get("OPENAI_MODEL") or "gpt-4o",
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-        return response.choices[0].message.content or ""
+        result = await llm_router.generate(messages, temperature, max_tokens)
+        # 单源模式返回 str，多源模式返回 list
+        if isinstance(result, list):
+            # 多源模式：取第一个成功的响应
+            for r in result:
+                if "response" in r:
+                    return r["response"]
+            return ""
+        return result
 
     async def generate_stream(
         self,
         messages: list[dict],
         temperature: float | None = None,
     ) -> AsyncIterator[str]:
-        if temperature is None:
-            temperature = config_manager.get_float("LLM_TEMPERATURE")
+        async for token in llm_router.generate_stream(messages, temperature):
+            yield token
 
-        client = self._ensure_client()
-        stream = await client.chat.completions.create(
-            model=config_manager.get("OPENAI_MODEL") or "gpt-4o",
-            messages=messages,
-            temperature=temperature,
-            stream=True,
-        )
-        async for chunk in stream:
-            if chunk.choices and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
-
-    async def switch_model(self, model_id: str, base_url: Optional[str] = None) -> None:
-        await config_manager.set("OPENAI_MODEL", model_id)
-        if base_url is not None:
-            await config_manager.set("OPENAI_BASE_URL", base_url)
-        if self._client is not None:
-            await self._client.close()
-            self._client = None
+    async def switch_model(self, model_id: str, base_url: str | None = None) -> None:
+        # 兼容旧代码，实际切换在 llm_router 中处理
+        pass
 
     async def close(self) -> None:
-        if self._client is not None:
-            await self._client.close()
-            self._client = None
+        llm_router.reset_providers()
 
 
 llm_client = LLMClient()

@@ -6,6 +6,17 @@ from fastapi import APIRouter, HTTPException
 
 from app.services.config_manager import config_manager, CONFIG_SCHEMA
 from app.services.llm_client import llm_client
+from app.services.llm import (
+    llm_router,
+    get_llm_mode,
+    get_active_provider,
+    get_multi_providers,
+    set_llm_mode,
+    set_active_provider,
+    set_multi_providers,
+    update_provider_config,
+    get_all_providers_info,
+)
 from app.services.stats_collector import stats_collector
 from app.services.prompt_manager import prompt_manager
 from app.agent.nodes.classifier import classify_intent
@@ -18,18 +29,109 @@ from datetime import datetime
 router = APIRouter(prefix="/api", tags=["admin"])
 
 
-MODELS = [
-    {"id": "deepseek-chat", "name": "DeepSeek-V3 (非思考)", "provider": "deepseek", "description": "通用对话，支持 Tool Calls"},
-    {"id": "deepseek-reasoner", "name": "DeepSeek-V3 (思考)", "provider": "deepseek", "description": "思考模式，支持复杂推理"},
-    {"id": "MiniMax-M2.7", "name": "MiniMax-M2.7", "provider": "minimax", "description": "最强推理能力（约60TPS）"},
-    {"id": "MiniMax-M2.7-highspeed", "name": "MiniMax-M2.7 极速版", "provider": "minimax", "description": "极速版，更快更敏捷（约100TPS）"},
-    {"id": "MiniMax-M2.5", "name": "MiniMax-M2.5", "provider": "minimax", "description": "顶尖性能与极致性价比（约60TPS）"},
-    {"id": "MiniMax-M2.5-highspeed", "name": "MiniMax-M2.5 极速版", "provider": "minimax", "description": "极速版，更快更敏捷（约100TPS）"},
-    {"id": "MiniMax-M2.1", "name": "MiniMax-M2.1", "provider": "minimax", "description": "强大多语言编程能力（约60TPS）"},
-    {"id": "MiniMax-M2.1-highspeed", "name": "MiniMax-M2.1 极速版", "provider": "minimax", "description": "极速版，更快更敏捷（约100TPS）"},
-    {"id": "MiniMax-M2", "name": "MiniMax-M2", "provider": "minimax", "description": "专为高效编码与Agent工作流而生"},
-]
+# === Provider 路由 ===
 
+@router.get("/providers")
+async def list_providers():
+    """获取所有可用的 Provider"""
+    providers = get_all_providers_info()
+    return {
+        "providers": providers,
+        "mode": get_llm_mode(),
+        "active": get_active_provider(),
+        "multi": get_multi_providers(),
+    }
+
+
+@router.put("/llm-mode")
+async def set_llm_mode_endpoint(body: dict):
+    """切换 LLM 模式 (single/multi)"""
+    mode = body.get("mode")
+    if mode not in ("single", "multi"):
+        raise HTTPException(400, "mode 必须是 single 或 multi")
+    set_llm_mode(mode)
+    llm_router.reset_providers()
+    return {"mode": mode}
+
+
+@router.get("/providers/{name}/models")
+async def get_provider_models(name: str):
+    """获取某 Provider 的模型列表"""
+    providers_info = get_all_providers_info()
+    for p in providers_info:
+        if p["name"] == name:
+            return {"provider": name, "models": p["models"], "default": p["default_model"]}
+    raise HTTPException(404, f"Provider {name} 不存在")
+
+
+@router.put("/providers/{name}/config")
+async def update_provider_config_endpoint(name: str, body: dict):
+    """更新 Provider 配置"""
+    if name not in ("deepseek", "minimax", "openai"):
+        raise HTTPException(400, "无效的 Provider 名称")
+
+    api_key = body.get("api_key")
+    model = body.get("model")
+    base_url = body.get("base_url")
+
+    update_provider_config(name, api_key=api_key, model=model, base_url=base_url)
+    llm_router.reset_providers()
+
+    return {"message": f"Provider {name} 配置已更新"}
+
+
+@router.get("/providers/health")
+async def providers_health():
+    """检查所有 Provider 的健康状态"""
+    health = await llm_router.health_check()
+    return {"health": health}
+
+
+# === Model 路由（兼容） ===
+
+@router.get("/models")
+async def list_models():
+    """获取当前 Provider 的模型列表"""
+    providers = get_all_providers_info()
+    active = get_active_provider()
+    for p in providers:
+        if p["name"] == active:
+            return {
+                "models": [
+                    {"id": m, "name": m, "provider": active}
+                    for m in p["models"]
+                ]
+            }
+    return {"models": []}
+
+
+@router.get("/models/current")
+async def get_current_model():
+    """获取当前模型"""
+    provider = get_active_provider()
+    model = config_manager.get(f"PROVIDER_{provider.upper()}_MODEL") or ""
+    return {"provider": provider, "model": model}
+
+
+@router.put("/models/current")
+async def set_current_model(body: dict):
+    """切换当前模型（单源模式）"""
+    model_id = body.get("model_id")
+    if not model_id:
+        raise HTTPException(400, "需要 model_id")
+
+    provider = body.get("provider", get_active_provider())
+    if not provider:
+        raise HTTPException(400, "需要 provider")
+
+    update_provider_config(provider, model=model_id)
+    set_active_provider(provider)
+    llm_router.reset_providers()
+
+    return {"provider": provider, "model": model_id}
+
+
+# === Settings 路由 ===
 
 def _validate_value(key: str, value: str) -> tuple[bool, str]:
     schema = CONFIG_SCHEMA.get(key)
@@ -91,10 +193,11 @@ async def batch_update_settings(body: dict):
 
     await config_manager.set_batch(updates)
 
-    llm_keys = {"OPENAI_MODEL", "OPENAI_BASE_URL", "OPENAI_API_KEY"}
+    # 检查是否涉及 LLM 配置
+    llm_keys = {"LLM_MODE", "LLM_PROVIDER", "MULTI_PROVIDERS",
+                 "PROVIDER_DEEPSEEK_API_KEY", "PROVIDER_MINIMAX_API_KEY", "PROVIDER_OPENAI_API_KEY"}
     if llm_keys & set(updates.keys()):
-        await llm_client.close()
-        llm_client._client = None
+        llm_router.reset_providers()
 
     return {
         "settings": config_manager.get_all(),
@@ -117,9 +220,8 @@ async def update_setting(key: str, body: dict):
 
     await config_manager.set(key, value)
 
-    if key in {"OPENAI_MODEL", "OPENAI_BASE_URL", "OPENAI_API_KEY"}:
-        await llm_client.close()
-        llm_client._client = None
+    if key.startswith("PROVIDER_") or key in {"LLM_MODE", "LLM_PROVIDER"}:
+        llm_router.reset_providers()
 
     restart_required = CONFIG_SCHEMA[key].get("restart_required", False)
     return {
@@ -144,31 +246,11 @@ async def reset_settings(body: dict):
         if default is not None:
             await config_manager.set(key, str(default))
 
+    llm_router.reset_providers()
     return {"message": "已重置为默认值", "settings": config_manager.get_all()}
 
 
-@router.get("/models")
-async def list_models():
-    return {"models": MODELS}
-
-
-@router.get("/models/current")
-async def get_current_model():
-    model_id = config_manager.get("OPENAI_MODEL") or "gpt-4o"
-    return {"current": model_id}
-
-
-@router.put("/models/current")
-async def set_current_model(body: dict):
-    model_id = body.get("model_id")
-    if not model_id:
-        raise HTTPException(400, "需要 model_id")
-
-    await config_manager.set("OPENAI_MODEL", model_id)
-    await llm_client.close()
-    llm_client._client = None
-    return {"current": model_id}
-
+# === Monitor 路由 ===
 
 @router.get("/monitor/stats")
 async def get_stats():
@@ -196,7 +278,7 @@ async def get_logs(limit: int = 50, intent: Optional[str] = None):
 
 @router.get("/monitor/health")
 async def get_health():
-    status = {"redis": "unknown", "openai": "unknown"}
+    status = {"redis": "unknown", "llm": "unknown"}
 
     try:
         await stats_collector.get_stats()
@@ -205,20 +287,20 @@ async def get_health():
         status["redis"] = "error"
 
     try:
-        client = llm_client._ensure_client()
-        from openai import AsyncOpenAI
-        test_client = AsyncOpenAI(
-            api_key=config_manager.get("OPENAI_API_KEY") or "",
-            base_url=config_manager.get("OPENAI_BASE_URL") or "https://api.openai.com/v1",
-        )
-        await test_client.models.list()
-        status["openai"] = "ok"
+        llm_health = await llm_router.health_check()
+        provider_statuses = [v for v in llm_health.values() if v == "ok"]
+        if provider_statuses:
+            status["llm"] = "ok"
+        else:
+            status["llm"] = "no_provider_configured"
     except Exception as e:
-        status["openai"] = f"error: {str(e)[:50]}"
+        status["llm"] = f"error: {str(e)[:50]}"
 
-    overall = "ok" if status["redis"] == "ok" and status["openai"] == "ok" else "degraded"
+    overall = "ok" if status["redis"] == "ok" else "degraded"
     return {"status": overall, "components": status}
 
+
+# === Prompts 路由 ===
 
 @router.get("/prompts")
 async def list_prompts():
@@ -247,7 +329,7 @@ async def update_prompt(name: str, body: dict):
 
 @router.get("/prompts/history/{name}")
 async def get_prompt_history(name: str):
-    history = prompt_manager.get_history(name)
+    history = await prompt_manager.get_history(name)
     return {"history": history}
 
 
