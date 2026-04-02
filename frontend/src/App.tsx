@@ -6,6 +6,7 @@ import MonitorPage from './pages/Monitor'
 import PromptsPage from './pages/Prompts'
 import SettingsPage from './pages/Settings'
 import ToolsPage from './pages/Tools'
+import WorkflowPage from './pages/Workflow'
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/prompts" element={<PromptsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/tools" element={<ToolsPage />} />
+          <Route path="/workflow" element={<WorkflowPage />} />
           <Route path="/" element={<ChatPage />} />
         </Routes>
       </Layout>
