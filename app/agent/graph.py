@@ -8,6 +8,7 @@ from app.agent.nodes.evaluator import evaluate_results
 from app.agent.nodes.generator import generate_answer
 from app.agent.nodes.clarify import ask_clarification
 from app.agent.nodes.fallback import fallback_response
+from app.agent.nodes.tool_caller import call_tools
 
 
 def _route_by_quality(state: AgentState) -> str:
@@ -20,6 +21,14 @@ def _route_by_quality(state: AgentState) -> str:
         return "fallback"
 
 
+def _route_after_generate(state: AgentState) -> str:
+    """根据生成结果决定下一步"""
+    tool_calls = state.get("tool_calls")
+    if tool_calls:
+        return "tool_call"
+    return "final"
+
+
 def build_agent_graph() -> StateGraph:
     graph = StateGraph(AgentState)
 
@@ -28,6 +37,7 @@ def build_agent_graph() -> StateGraph:
     graph.add_node("retrieve", retrieve_docs)
     graph.add_node("evaluate", evaluate_results)
     graph.add_node("generate", generate_answer)
+    graph.add_node("tool_call", call_tools)
     graph.add_node("clarify", ask_clarification)
     graph.add_node("fallback", fallback_response)
 
@@ -47,7 +57,19 @@ def build_agent_graph() -> StateGraph:
         },
     )
 
-    graph.add_edge("generate", END)
+    # 条件边：如果 generate 返回了 tool_calls，转到 tool_call
+    graph.add_conditional_edges(
+        "generate",
+        _route_after_generate,
+        {
+            "tool_call": "tool_call",
+            "final": END,
+        },
+    )
+
+    # tool_call 执行完后回到 generate 继续生成
+    graph.add_edge("tool_call", "generate")
+
     graph.add_edge("clarify", END)
     graph.add_edge("fallback", END)
 
@@ -75,6 +97,9 @@ async def run_agent(
         "response": None,
         "sources": [],
         "need_clarification": False,
+        "tool_calls": None,
+        "tool_results": None,
+        "messages": None,
     }
     result = await agent_graph.ainvoke(initial_state)
     return result

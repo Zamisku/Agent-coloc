@@ -16,9 +16,10 @@ class LLMClient:
         messages: list[dict],
         temperature: float | None = None,
         max_tokens: int | None = None,
-    ) -> str:
-        result = await llm_router.generate(messages, temperature, max_tokens)
-        # 单源模式返回 str，多源模式返回 list
+        tools: list[dict] | None = None,
+    ) -> str | dict:
+        result = await llm_router.generate(messages, temperature, max_tokens, tools)
+        # 单源模式返回 str 或 dict（带 tool_calls），多源模式返回 list
         if isinstance(result, list):
             # 多源模式：取第一个成功的响应
             for r in result:
@@ -31,8 +32,9 @@ class LLMClient:
         self,
         messages: list[dict],
         temperature: float | None = None,
-    ) -> AsyncIterator[str]:
-        async for token in llm_router.generate_stream(messages, temperature):
+        tools: list[dict] | None = None,
+    ) -> AsyncIterator[str | dict]:
+        async for token in llm_router.generate_stream(messages, temperature, tools):
             yield token
 
     async def switch_model(self, model_id: str, base_url: str | None = None) -> None:

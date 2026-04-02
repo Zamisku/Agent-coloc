@@ -14,6 +14,7 @@ from app.services.llm_client import llm_client
 from app.services.rag_client import rag_client
 from app.services.memory import memory_service
 from app.services.config_manager import config_manager
+from app.services.skills.init import init_skills
 
 
 configure_logging()
@@ -32,6 +33,10 @@ async def lifespan(app: FastAPI):
         logger.info("redis_connected")
     except Exception as e:
         logger.warning("redis_connection_failed", error=str(e))
+
+    # 初始化 Skills
+    init_skills()
+    logger.info("skills_initialized")
 
     yield
 

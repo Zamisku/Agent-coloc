@@ -23,16 +23,16 @@ class LLMRouter:
             self._providers[name] = create_provider(name)
         return self._providers[name]
 
-    async def generate(self, messages: list[dict], temperature: float | None = None, max_tokens: int | None = None) -> str | list[dict]:
+    async def generate(self, messages: list[dict], temperature: float | None = None, max_tokens: int | None = None, tools: list[dict] | None = None) -> str | list[dict]:
         """生成回复"""
         mode = get_llm_mode()
 
         if mode == "multi":
-            return await self._multi_generate(messages, temperature, max_tokens)
+            return await self._multi_generate(messages, temperature, max_tokens, tools)
         else:
-            return await self._single_generate(messages, temperature, max_tokens)
+            return await self._single_generate(messages, temperature, max_tokens, tools)
 
-    async def _single_generate(self, messages: list[dict], temperature: float | None = None, max_tokens: int | None = None) -> str:
+    async def _single_generate(self, messages: list[dict], temperature: float | None = None, max_tokens: int | None = None, tools: list[dict] | None = None) -> str | dict:
         """单源生成"""
         provider_name = get_active_provider()
         if not provider_name:
@@ -42,9 +42,9 @@ class LLMRouter:
         if provider is None:
             raise ValueError(f"Provider {provider_name} 不存在")
 
-        return await provider.generate(messages, temperature, max_tokens)
+        return await provider.generate(messages, temperature, max_tokens, tools)
 
-    async def _multi_generate(self, messages: list[dict], temperature: float | None = None, max_tokens: int | None = None) -> list[dict]:
+    async def _multi_generate(self, messages: list[dict], temperature: float | None = None, max_tokens: int | None = None, tools: list[dict] | None = None) -> list[dict]:
         """多源并发生成，返回所有结果"""
         provider_names = get_multi_providers()
         if not provider_names:
@@ -54,7 +54,7 @@ class LLMRouter:
         for name in provider_names:
             provider = self._get_provider(name)
             if provider:
-                tasks.append(self._call_provider(provider, messages, temperature, max_tokens, name))
+                tasks.append(self._call_provider(provider, messages, temperature, max_tokens, tools, name))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -73,14 +73,14 @@ class LLMRouter:
 
         return valid_results
 
-    async def _call_provider(self, provider, messages: list[dict], temperature: float | None, max_tokens: int | None, name: str):
+    async def _call_provider(self, provider, messages: list[dict], temperature: float | None, max_tokens: int | None, tools: list[dict] | None, name: str):
         """调用单个 provider"""
         try:
-            return await provider.generate(messages, temperature, max_tokens)
+            return await provider.generate(messages, temperature, max_tokens, tools)
         except Exception as e:
             return e
 
-    async def generate_stream(self, messages: list[dict], temperature: float | None = None) -> AsyncIterator[str]:
+    async def generate_stream(self, messages: list[dict], temperature: float | None = None, tools: list[dict] | None = None) -> AsyncIterator[str | dict]:
         """流式生成（仅支持单源模式）"""
         mode = get_llm_mode()
 
@@ -95,7 +95,7 @@ class LLMRouter:
         if provider is None:
             raise ValueError(f"Provider {provider_name} 不存在")
 
-        async for token in provider.generate_stream(messages, temperature):
+        async for token in provider.generate_stream(messages, temperature, tools):
             yield token
 
     async def health_check(self, provider_name: str | None = None) -> dict:

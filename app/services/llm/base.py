@@ -40,36 +40,104 @@ class BaseProvider(ABC):
         messages: list[dict],
         temperature: float | None = None,
         max_tokens: int | None = None,
-    ) -> str:
+        tools: list[dict] | None = None,
+    ) -> str | dict:
         temp = temperature if temperature is not None else self.temperature
         maxt = max_tokens if max_tokens is not None else self.max_tokens
 
         client = self._get_client()
-        response = await client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temp,
-            max_tokens=maxt,
-        )
-        return response.choices[0].message.content or ""
+        kwargs = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temp,
+            "max_tokens": maxt,
+        }
+        if tools:
+            kwargs["tools"] = tools
+
+        response = await client.chat.completions.create(**kwargs)
+
+        message = response.choices[0].message
+        # 如果有工具调用，返回完整消息
+        if message.tool_calls:
+            return {
+                "content": message.content or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    }
+                    for tc in message.tool_calls
+                ],
+            }
+        return message.content or ""
 
     async def generate_stream(
         self,
         messages: list[dict],
         temperature: float | None = None,
-    ) -> AsyncIterator[str]:
+        tools: list[dict] | None = None,
+    ) -> AsyncIterator[str | dict]:
         temp = temperature if temperature is not None else self.temperature
 
         client = self._get_client()
-        stream = await client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temp,
-            stream=True,
-        )
+        kwargs = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temp,
+            "stream": True,
+        }
+        if tools:
+            kwargs["tools"] = tools
+
+        stream = await client.chat.completions.create(**kwargs)
+
+        tool_calls_buffer: list[dict] = []
+        current_tool_call: dict | None = None
+
         async for chunk in stream:
-            if chunk.choices and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta
+
+            # 处理工具调用
+            if delta.tool_calls:
+                for tc_delta in delta.tool_calls:
+                    if tc_delta.index is not None:
+                        # 继续之前的工具调用
+                        if tc_delta.index < len(tool_calls_buffer):
+                            tc = tool_calls_buffer[tc_delta.index]
+                            if tc_delta.function:
+                                if tc_delta.function.name:
+                                    tc["name"] = tc_delta.function.name
+                                if tc_delta.function.arguments:
+                                    if "arguments" not in tc:
+                                        tc["arguments"] = ""
+                                    tc["arguments"] += tc_delta.function.arguments
+                        else:
+                            # 新的工具调用
+                            tc = {
+                                "id": tc_delta.id or "",
+                                "name": tc_delta.function.name or "",
+                                "arguments": tc_delta.function.arguments or "",
+                            }
+                            tool_calls_buffer.append(tc)
+                continue
+
+            # 处理普通文本内容
+            if delta.content:
+                if tool_calls_buffer:
+                    # 如果有累积的工具调用，先返回工具调用
+                    for tc in tool_calls_buffer:
+                        yield tc
+                    tool_calls_buffer = []
+                yield delta.content
+
+        # 如果还有剩余的工具调用
+        if tool_calls_buffer:
+            for tc in tool_calls_buffer:
+                yield tc
 
     async def health_check(self) -> bool:
         try:

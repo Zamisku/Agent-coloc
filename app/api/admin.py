@@ -19,6 +19,8 @@ from app.services.llm import (
 )
 from app.services.stats_collector import stats_collector
 from app.services.prompt_manager import prompt_manager
+from app.services.skills.init import get_all_tools, execute_tool
+from app.services.mcp.server import get_mcp_server
 from app.agent.nodes.classifier import classify_intent
 from app.agent.nodes.rewriter import rewrite_query
 from app.agent.nodes.generator import generate_answer
@@ -368,3 +370,61 @@ async def test_prompt(name: str, body: dict):
 
     else:
         raise HTTPException(404, f"Prompt '{name}' 不支持测试")
+
+
+# === Skills 路由 ===
+
+@router.get("/skills")
+async def list_skills():
+    """获取所有可用的 Skills"""
+    from app.services.skills.registry import skill_registry
+    return {
+        "skills": skill_registry.list_skills(),
+    }
+
+
+@router.post("/skills/call")
+async def call_skill(body: dict):
+    """调用指定的 Skill"""
+    skill_name = body.get("skill")
+    params = body.get("params", {})
+
+    if not skill_name:
+        raise HTTPException(400, "需要 skill 参数")
+
+    result = await execute_tool(skill_name, params)
+    return result
+
+
+# === MCP 路由 ===
+
+@router.get("/mcp/tools")
+async def list_mcp_tools():
+    """获取 MCP Tools 列表"""
+    mcp_server = await get_mcp_server()
+    return {
+        "tools": mcp_server._tools,
+    }
+
+
+@router.post("/mcp/call")
+async def call_mcp_tool(body: dict):
+    """调用 MCP Tool"""
+    tool_name = body.get("name")
+    arguments = body.get("arguments", {})
+
+    if not tool_name:
+        raise HTTPException(400, "需要 name 参数")
+
+    mcp_server = await get_mcp_server()
+    request = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": tool_name,
+            "arguments": arguments,
+        },
+    }
+    response = await mcp_server.handle_request(request)
+    return response

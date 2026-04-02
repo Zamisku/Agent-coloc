@@ -16,3 +16,7 @@ class AgentState(TypedDict, total=False):
     response: Optional[str]
     sources: list[str]
     need_clarification: bool
+    # Tool calling support
+    tool_calls: Optional[list[dict]]  # 待执行的工具调用
+    tool_results: Optional[list[dict]]  # 工具执行结果
+    messages: Optional[list[dict]]  # 对话消息历史（包含工具调用和结果）
