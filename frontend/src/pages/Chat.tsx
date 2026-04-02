@@ -26,6 +26,11 @@ export default function ChatPage() {
 
   useEffect(() => {
     fetchCurrent()
+    // 获取意图选择器设置
+    api.getSettings().then(({ settings }) => {
+      const enabled = settings.INTENT_SELECTOR_ENABLED
+      setIntentSelectorEnabled(enabled !== 'false')
+    }).catch(console.error)
   }, [])
 
   useEffect(() => {
@@ -98,14 +103,6 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => setIntentSelectorEnabled(e => !e)}
-              className={`px-3 py-1.5 text-sm rounded-lg border ${
-                intentSelectorEnabled ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-200 text-gray-500'
-              }`}
-            >
-              {intentSelectorEnabled ? '隐藏意图选择' : '显示意图选择'}
-            </button>
             <button
               onClick={() => setShowDebug(d => !d)}
               className={`px-3 py-1.5 text-sm rounded-lg border ${

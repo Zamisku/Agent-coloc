@@ -216,6 +216,13 @@ CONFIG_SCHEMA = {
         "description": "逗号分隔，如: admission,academic,career",
         "default": "admission",
     },
+    "INTENT_SELECTOR_ENABLED": {
+        "group": "系统配置",
+        "label": "意图选择器",
+        "type": "boolean",
+        "description": "开启后在对话界面显示意图选择器（开发人员用）",
+        "default": "true",
+    },
 }
 
 
