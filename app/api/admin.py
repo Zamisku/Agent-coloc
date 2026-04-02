@@ -442,3 +442,34 @@ async def call_mcp_tool(body: dict):
     }
     response = await mcp_server.handle_request(request)
     return response
+
+
+# === RAG 路由 ===
+
+@router.post("/rag/test")
+async def test_rag(body: dict):
+    """测试 RAG 检索功能"""
+    from app.services.rag_client import rag_client
+
+    query = body.get("query", "")
+    domain = body.get("domain", "admission")
+    top_k = body.get("top_k")
+
+    if not query:
+        raise HTTPException(400, "需要 query 参数")
+
+    result = await rag_client.retrieve(query, domain, top_k)
+
+    return {
+        "query": result.query,
+        "domain": result.domain,
+        "documents": [
+            {
+                "content": doc.content,
+                "score": doc.score,
+                "source": doc.source,
+                "metadata": doc.metadata,
+            }
+            for doc in result.documents
+        ],
+    }

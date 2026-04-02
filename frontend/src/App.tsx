@@ -7,6 +7,7 @@ import PromptsPage from './pages/Prompts'
 import SettingsPage from './pages/Settings'
 import ToolsPage from './pages/Tools'
 import WorkflowPage from './pages/Workflow'
+import RAGPage from './pages/RAG'
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/tools" element={<ToolsPage />} />
           <Route path="/workflow" element={<WorkflowPage />} />
+          <Route path="/rag" element={<RAGPage />} />
           <Route path="/" element={<ChatPage />} />
         </Routes>
       </Layout>

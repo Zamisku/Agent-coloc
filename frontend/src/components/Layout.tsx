@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { MessageSquare, Cpu, BarChart3, FileCode, Settings, Wrench, GitBranch } from 'lucide-react'
+import { MessageSquare, Cpu, BarChart3, FileCode, Settings, Wrench, GitBranch, Database } from 'lucide-react'
 
 const nav = [
   { to: '/chat', icon: MessageSquare, label: '对话测试' },
@@ -7,6 +7,7 @@ const nav = [
   { to: '/monitor', icon: BarChart3, label: '系统监控' },
   { to: '/prompts', icon: FileCode, label: 'Prompt 管理' },
   { to: '/workflow', icon: GitBranch, label: '工作流程' },
+  { to: '/rag', icon: Database, label: 'RAG 检索' },
   { to: '/tools', icon: Wrench, label: '工具管理' },
   { to: '/settings', icon: Settings, label: '系统设置' },
 ]
