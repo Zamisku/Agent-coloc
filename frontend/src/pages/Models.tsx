@@ -21,10 +21,9 @@ export default function ModelsPage() {
     fetchStats()
   }, [])
 
-  const handleSwitch = async (modelId: string) => {
+  const handleSwitch = async (modelId: string, provider: string) => {
     setSwitching(true)
     try {
-      const provider = currentProvider || 'deepseek'
       await switchTo(modelId, provider)
     } finally {
       setSwitching(false)
@@ -116,7 +115,7 @@ export default function ModelsPage() {
                 </p>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleSwitch(modelId)}
+                    onClick={() => handleSwitch(modelId, prov)}
                     disabled={switching}
                     className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-300"
                   >
