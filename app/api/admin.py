@@ -91,18 +91,18 @@ async def providers_health():
 
 @router.get("/models")
 async def list_models():
-    """获取当前 Provider 的模型列表"""
+    """获取所有模型列表（按 Provider 分组）"""
     providers = get_all_providers_info()
-    active = get_active_provider()
+    all_models = []
     for p in providers:
-        if p["name"] == active:
-            return {
-                "models": [
-                    {"id": m, "name": m, "provider": active}
-                    for m in p["models"]
-                ]
-            }
-    return {"models": []}
+        for m in p["models"]:
+            all_models.append({
+                "id": m,
+                "name": m,
+                "provider": p["name"],
+                "description": f"{p['display_name']} - {m}"
+            })
+    return {"models": all_models}
 
 
 @router.get("/models/current")
@@ -110,7 +110,9 @@ async def get_current_model():
     """获取当前模型"""
     provider = get_active_provider()
     model = config_manager.get(f"PROVIDER_{provider.upper()}_MODEL") or ""
-    return {"provider": provider, "model": model}
+    # 返回 provider:model 格式
+    current = f"{provider}:{model}" if model else provider
+    return {"current": current, "provider": provider, "model": model}
 
 
 @router.put("/models/current")
@@ -128,7 +130,7 @@ async def set_current_model(body: dict):
     set_active_provider(provider)
     llm_router.reset_providers()
 
-    return {"provider": provider, "model": model_id}
+    return {"current": f"{provider}:{model_id}", "provider": provider, "model": model_id}
 
 
 # === Settings 路由 ===

@@ -62,10 +62,26 @@ export const api = {
 
   getModels: (): Promise<{ models: ModelInfo[] }> => request('/api/models'),
 
-  getCurrentModel: (): Promise<{ current: string }> => request('/api/models/current'),
+  getCurrentModel: (): Promise<{ current: string; provider: string; model: string }> => request('/api/models/current'),
 
-  switchModel: (modelId: string): Promise<{ current: string }> =>
-    request('/api/models/current', { method: 'PUT', body: JSON.stringify({ model_id: modelId }) }),
+  switchModel: (modelId: string, provider?: string): Promise<{ current: string; provider: string; model: string }> =>
+    request('/api/models/current', { method: 'PUT', body: JSON.stringify({ model_id: modelId, provider }) }),
+
+  // Provider APIs
+  getProviders: (): Promise<{ providers: any[]; mode: string; active: string; multi: string[] }> =>
+    request('/api/providers'),
+
+  getProviderModels: (name: string): Promise<{ provider: string; models: string[]; default: string }> =>
+    request(`/api/providers/${name}/models`),
+
+  setLlmMode: (mode: string): Promise<{ mode: string }> =>
+    request('/api/llm-mode', { method: 'PUT', body: JSON.stringify({ mode }) }),
+
+  updateProviderConfig: (name: string, config: { api_key?: string; model?: string; base_url?: string }): Promise<any> =>
+    request(`/api/providers/${name}/config`, { method: 'PUT', body: JSON.stringify(config) }),
+
+  getProvidersHealth: (): Promise<{ health: Record<string, string> }> =>
+    request('/api/providers/health'),
 
   getMonitorStats: (): Promise<{ stats: MonitorStats }> => request('/api/monitor/stats'),
 
