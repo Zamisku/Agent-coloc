@@ -4,9 +4,10 @@ import { IntentSelector } from '../intent/IntentSelector'
 interface Props {
   onSend: (text: string, intent?: string, intentMode?: string) => void
   disabled?: boolean
+  intentSelectorEnabled?: boolean
 }
 
-export function ChatInput({ onSend, disabled }: Props) {
+export function ChatInput({ onSend, disabled, intentSelectorEnabled = true }: Props) {
   const [text, setText] = useState('')
   const [intent, setIntent] = useState<string | null>(null)
   const [intentMode, setIntentMode] = useState<'auto' | 'force' | 'suggest'>('auto')
@@ -34,12 +35,14 @@ export function ChatInput({ onSend, disabled }: Props) {
 
   return (
     <div className="flex flex-col">
-      <IntentSelector
-        selected={intent}
-        mode={intentMode}
-        onSelect={setIntent}
-        onModeChange={setIntentMode}
-      />
+      {intentSelectorEnabled && (
+        <IntentSelector
+          selected={intent}
+          mode={intentMode}
+          onSelect={setIntent}
+          onModeChange={setIntentMode}
+        />
+      )}
       <div className="flex gap-2 p-4 border-t border-gray-200 bg-white">
         <textarea
           value={text}

@@ -20,6 +20,7 @@ export default function ChatPage() {
   const { current, fetchCurrent } = useModelStore()
   const [streaming, setStreaming] = useState<StreamState | null>(null)
   const [showDebug, setShowDebug] = useState(true)
+  const [intentSelectorEnabled, setIntentSelectorEnabled] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const [lastDebug, setLastDebug] = useState<DebugInfo | null>(null)
 
@@ -98,6 +99,14 @@ export default function ChatPage() {
           </div>
           <div className="flex gap-2">
             <button
+              onClick={() => setIntentSelectorEnabled(e => !e)}
+              className={`px-3 py-1.5 text-sm rounded-lg border ${
+                intentSelectorEnabled ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-200 text-gray-500'
+              }`}
+            >
+              {intentSelectorEnabled ? '隐藏意图选择' : '显示意图选择'}
+            </button>
+            <button
               onClick={() => setShowDebug(d => !d)}
               className={`px-3 py-1.5 text-sm rounded-lg border ${
                 showDebug ? 'bg-gray-100 border-gray-300' : 'border-gray-200'
@@ -138,7 +147,7 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        <ChatInput onSend={handleSend} disabled={!!streaming} />
+        <ChatInput onSend={handleSend} disabled={!!streaming} intentSelectorEnabled={intentSelectorEnabled} />
       </div>
 
       <DebugPanel
