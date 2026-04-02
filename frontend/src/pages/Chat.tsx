@@ -34,8 +34,6 @@ export default function ChatPage() {
   const handleSend = async (content: string) => {
     const currentSessionId = sessionId || undefined
 
-    addMessage({ role: 'user', content, timestamp: new Date().toISOString() })
-
     setStreaming({ text: '', debug: null, done: false, error: null })
     setLastDebug(null)
 

@@ -29,7 +29,7 @@ export const api = {
   chat: (data: ChatRequest): Promise<ChatResponse> =>
     request('/api/chat', { method: 'POST', body: JSON.stringify(data) }),
 
-  chatStream: (data: ChatRequest, onMessage: (text: string) => void, onDebug: (debug: unknown) => void, onSessionId?: (sessionId: string) => void) => {
+  chatStream: (data: ChatRequest, onMessage: (text: string) => void, onDebug: (debug: unknown) => void, onSessionId?: (sessionId: string) => void): Promise<void> => {
     return fetch(`${BASE}/api/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -41,7 +41,7 @@ export const api = {
 
       const reader = res.body?.getReader()
       const decoder = new TextDecoder()
-      if (!reader) return
+      if (!reader) return Promise.resolve()
 
       let eventType = ''
       let dataBuffer = ''
@@ -60,30 +60,35 @@ export const api = {
         dataBuffer = ''
       }
 
-      const read = () => {
-        reader.read().then(({ done, value }) => {
-          if (done) return
-          const chunk = decoder.decode(value, { stream: true })
-          const lines = chunk.split('\n')
+      return new Promise<void>((resolve) => {
+        const read = () => {
+          reader.read().then(({ done, value }) => {
+            if (done) {
+              resolve()
+              return
+            }
+            const chunk = decoder.decode(value, { stream: true })
+            const lines = chunk.split('\n')
 
-          for (const line of lines) {
-            if (line.startsWith('event:')) {
-              if (eventType && dataBuffer) {
-                processEvent()
-              }
-              eventType = line.slice(6).trim()
-            } else if (line.startsWith('data:')) {
-              dataBuffer = line.slice(5).trim()
-            } else if (line === '') {
-              if (eventType && dataBuffer) {
-                processEvent()
+            for (const line of lines) {
+              if (line.startsWith('event:')) {
+                if (eventType && dataBuffer) {
+                  processEvent()
+                }
+                eventType = line.slice(6).trim()
+              } else if (line.startsWith('data:')) {
+                dataBuffer = line.slice(5).trim()
+              } else if (line === '') {
+                if (eventType && dataBuffer) {
+                  processEvent()
+                }
               }
             }
-          }
-          read()
-        })
-      }
-      read()
+            read()
+          })
+        }
+        read()
+      })
     })
   },
 
