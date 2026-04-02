@@ -4,10 +4,12 @@ interface Props {
   message: Message
   intent?: string
   latency?: number
+  isStreaming?: boolean
 }
 
-export function MessageBubble({ message, intent, latency }: Props) {
+export function MessageBubble({ message, intent, latency, isStreaming }: Props) {
   const isUser = message.role === 'user'
+  const isThinking = message.content === '思考中...'
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -18,7 +20,17 @@ export function MessageBubble({ message, intent, latency }: Props) {
             : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
         }`}
       >
-        <p className="whitespace-pre-wrap break-words">{message.content}</p>
+        {isThinking ? (
+          <div className="flex items-center gap-1">
+            <span className="thinking-dot animate-bounce [animation-delay:-0.16s]">.</span>
+            <span className="thinking-dot animate-bounce [animation-delay:-0.32s]">.</span>
+            <span className="thinking-dot animate-bounce">.</span>
+          </div>
+        ) : (
+          <p className={`whitespace-pre-wrap break-words ${isStreaming ? 'streaming-text' : ''}`}>
+            {message.content}
+          </p>
+        )}
         {!isUser && (intent || latency) && (
           <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400 flex gap-2">
             {intent && <span className="bg-gray-100 px-2 py-0.5 rounded">{intent}</span>}

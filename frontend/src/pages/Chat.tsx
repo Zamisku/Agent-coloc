@@ -68,10 +68,12 @@ export default function ChatPage() {
 
   const allMessages: Message[] = [
     ...messages,
-    ...(streaming && !streaming.done && streaming.text
-      ? [{ role: 'assistant' as const, content: streaming.text, timestamp: new Date().toISOString() }]
+    ...(streaming && !streaming.done
+      ? [{ role: 'assistant' as const, content: streaming.text || '思考中...', timestamp: new Date().toISOString() }]
       : []),
   ]
+
+  const isThinking = streaming && !streaming.done && !streaming.text
 
   const rounds = messages.filter(m => m.role === 'user').length
 
@@ -122,6 +124,7 @@ export default function ChatPage() {
               message={msg}
               intent={i === allMessages.length - 1 ? lastDebug?.intent : undefined}
               latency={i === allMessages.length - 1 ? lastDebug?.latency_ms : undefined}
+              isStreaming={streaming && !streaming.done && i === allMessages.length - 1}
             />
           ))}
 

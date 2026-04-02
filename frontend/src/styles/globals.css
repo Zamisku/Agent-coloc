@@ -8,6 +8,25 @@
   --color-error: #ef4444;
 }
 
+.thinking-dot {
+  display: inline-block;
+  color: #9ca3af;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.streaming-text::after {
+  content: '▋';
+  animation: blink 1s step-end infinite;
+  color: #3b82f6;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 body {
   font-family: 'Noto Sans SC', sans-serif;
 }
