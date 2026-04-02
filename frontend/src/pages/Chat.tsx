@@ -17,7 +17,7 @@ interface StreamState {
 
 export default function ChatPage() {
   const { messages, sessionId, sendStreamMessage, clearMessages, addMessage, updateSessionId } = useChatStore()
-  const { current, currentModel, fetchCurrent } = useModelStore()
+  const { current, fetchCurrent } = useModelStore()
   const [streaming, setStreaming] = useState<StreamState | null>(null)
   const [showDebug, setShowDebug] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -73,8 +73,6 @@ export default function ChatPage() {
       : []),
   ]
 
-  const isThinking = streaming && !streaming.done && !streaming.text
-
   const rounds = messages.filter(m => m.role === 'user').length
 
   return (
@@ -124,7 +122,7 @@ export default function ChatPage() {
               message={msg}
               intent={i === allMessages.length - 1 ? lastDebug?.intent : undefined}
               latency={i === allMessages.length - 1 ? lastDebug?.latency_ms : undefined}
-              isStreaming={streaming && !streaming.done && i === allMessages.length - 1}
+              isStreaming={!!(streaming && !streaming.done && i === allMessages.length - 1)}
             />
           ))}
 
