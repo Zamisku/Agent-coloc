@@ -11,7 +11,7 @@ import type {
   ChatResponse,
 } from '../types'
 
-const BASE = ''
+const BASE = import.meta.env.VITE_API_BASE || ''
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
