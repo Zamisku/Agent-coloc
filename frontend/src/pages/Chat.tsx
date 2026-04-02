@@ -17,7 +17,7 @@ interface StreamState {
 
 export default function ChatPage() {
   const { messages, sessionId, sendStreamMessage, clearMessages, addMessage, updateSessionId } = useChatStore()
-  const { current: currentModel, fetchCurrent } = useModelStore()
+  const { current, currentModel, fetchCurrent } = useModelStore()
   const [streaming, setStreaming] = useState<StreamState | null>(null)
   const [showDebug, setShowDebug] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -135,7 +135,7 @@ export default function ChatPage() {
 
       <DebugPanel
         debug={lastDebug}
-        currentModel={currentModel}
+        currentModel={current}
         rounds={rounds}
         collapsed={!showDebug}
       />
