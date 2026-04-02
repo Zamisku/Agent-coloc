@@ -83,30 +83,30 @@ def get_multi_providers() -> list[str]:
     return [p.strip() for p in providers_str.split(",") if p.strip()]
 
 
-def set_llm_mode(mode: str) -> None:
+async def set_llm_mode(mode: str) -> None:
     """设置 LLM 模式"""
-    config_manager.set("LLM_MODE", mode)
+    await config_manager.set("LLM_MODE", mode)
 
 
-def set_active_provider(provider: str) -> None:
+async def set_active_provider(provider: str) -> None:
     """设置当前激活的 provider"""
-    config_manager.set("LLM_PROVIDER", provider)
+    await config_manager.set("LLM_PROVIDER", provider)
 
 
-def set_multi_providers(providers: list[str]) -> None:
+async def set_multi_providers(providers: list[str]) -> None:
     """设置多源模式的 providers"""
-    config_manager.set("MULTI_PROVIDERS", ",".join(providers))
+    await config_manager.set("MULTI_PROVIDERS", ",".join(providers))
 
 
-def update_provider_config(provider: str, api_key: str | None = None, model: str | None = None, base_url: str | None = None) -> None:
+async def update_provider_config(provider: str, api_key: str | None = None, model: str | None = None, base_url: str | None = None) -> None:
     """更新 provider 配置"""
     prefix = f"{PROVIDER_PREFIX}{provider.upper()}_"
     if api_key is not None:
-        config_manager.set(f"{prefix}API_KEY", api_key)
+        await config_manager.set(f"{prefix}API_KEY", api_key)
     if model is not None:
-        config_manager.set(f"{prefix}MODEL", model)
+        await config_manager.set(f"{prefix}MODEL", model)
     if base_url is not None:
-        config_manager.set(f"{prefix}BASE_URL", base_url)
+        await config_manager.set(f"{prefix}BASE_URL", base_url)
 
 
 def get_all_providers_info() -> list[dict]:

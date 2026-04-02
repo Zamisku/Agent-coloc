@@ -51,7 +51,7 @@ async def set_llm_mode_endpoint(body: dict):
     mode = body.get("mode")
     if mode not in ("single", "multi"):
         raise HTTPException(400, "mode 必须是 single 或 multi")
-    set_llm_mode(mode)
+    await set_llm_mode(mode)
     llm_router.reset_providers()
     return {"mode": mode}
 
@@ -76,7 +76,7 @@ async def update_provider_config_endpoint(name: str, body: dict):
     model = body.get("model")
     base_url = body.get("base_url")
 
-    update_provider_config(name, api_key=api_key, model=model, base_url=base_url)
+    await update_provider_config(name, api_key=api_key, model=model, base_url=base_url)
     llm_router.reset_providers()
 
     return {"message": f"Provider {name} 配置已更新"}
@@ -128,8 +128,8 @@ async def set_current_model(body: dict):
     if not provider:
         raise HTTPException(400, "需要 provider")
 
-    update_provider_config(provider, model=model_id)
-    set_active_provider(provider)
+    await update_provider_config(provider, model=model_id)
+    await set_active_provider(provider)
     llm_router.reset_providers()
 
     return {"current": f"{provider}:{model_id}", "provider": provider, "model": model_id}
