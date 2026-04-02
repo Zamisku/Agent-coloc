@@ -4,6 +4,7 @@ import { ChatInput } from '../components/chat/ChatInput'
 import { DebugPanel } from '../components/chat/DebugPanel'
 import { useChatStore } from '../stores/chatStore'
 import { useModelStore } from '../stores/modelStore'
+import { api } from '../api/client'
 import type { DebugInfo, Message } from '../types'
 import { Plus } from 'lucide-react'
 
@@ -11,10 +12,11 @@ interface StreamState {
   text: string
   debug: DebugInfo | null
   done: boolean
+  error: string | null
 }
 
 export default function ChatPage() {
-  const { messages, sessionId, sendStreamMessage, clearMessages } = useChatStore()
+  const { messages, sessionId, sendStreamMessage, clearMessages, addMessage, updateSessionId } = useChatStore()
   const { current: currentModel, fetchCurrent } = useModelStore()
   const [streaming, setStreaming] = useState<StreamState | null>(null)
   const [showDebug, setShowDebug] = useState(true)
@@ -30,68 +32,45 @@ export default function ChatPage() {
   }, [messages, streaming?.text])
 
   const handleSend = async (content: string) => {
-    setStreaming({ text: '', debug: null, done: false })
+    const currentSessionId = sessionId || undefined
+
+    addMessage({ role: 'user', content, timestamp: new Date().toISOString() })
+
+    setStreaming({ text: '', debug: null, done: false, error: null })
     setLastDebug(null)
 
+    let fullText = ''
+    let newSessionId = currentSessionId
+
     try {
-      const res = await fetch('/api/chat/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content, session_id: sessionId || undefined }),
-      })
-
-      const reader = res.body?.getReader()
-      if (!reader) return
-
-      const decoder = new TextDecoder()
-      let eventType = ''
-      let dataBuffer = ''
-      let fullText = ''
-      let isDone = false
-
-      while (!isDone) {
-        const { done: streamDone, value } = await reader.read()
-        if (streamDone) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (line.startsWith('event:')) {
-            eventType = line.slice(6).trim()
-            dataBuffer = ''
-          } else if (line.startsWith('data:')) {
-            dataBuffer = line.slice(5).trim()
-          } else if (line === '') {
-            if (eventType === 'message' && dataBuffer) {
-              fullText += dataBuffer
-              setStreaming(s => s ? { ...s, text: fullText } : null)
-            } else if (eventType === 'debug' && dataBuffer) {
-              try {
-                const d = JSON.parse(dataBuffer) as DebugInfo
-                setLastDebug(d)
-              } catch {}
-            } else if (eventType === 'done') {
-              isDone = true
-            }
-            eventType = ''
-            dataBuffer = ''
-          }
+      await api.chatStream(
+        { message: content, session_id: currentSessionId },
+        (text) => {
+          fullText += text
+          setStreaming(s => s ? { ...s, text: fullText } : null)
+        },
+        (debug) => {
+          setLastDebug(debug as DebugInfo)
+        },
+        (sid) => {
+          newSessionId = sid
+          updateSessionId(sid)
         }
-      }
+      )
 
-      setStreaming({ text: fullText, debug: lastDebug, done: true })
-      // 将用户消息和助手回复添加到 messages 中
-      sendStreamMessage(content, fullText)
+      setStreaming({ text: fullText, debug: lastDebug, done: true, error: null })
+      sendStreamMessage(content, fullText, newSessionId)
     } catch (e) {
-      console.error(e)
-      setStreaming(null)
+      console.error('Chat error:', e)
+      const errorMessage = e instanceof Error ? e.message : '未知错误'
+      setStreaming({ text: '', debug: null, done: true, error: errorMessage })
+      addMessage({ role: 'assistant', content: `抱歉，发生了错误：${errorMessage}，请重试。`, timestamp: new Date().toISOString() })
     }
   }
 
   const allMessages: Message[] = [
     ...messages,
-    ...(streaming && !streaming.done
+    ...(streaming && !streaming.done && streaming.text
       ? [{ role: 'assistant' as const, content: streaming.text, timestamp: new Date().toISOString() }]
       : []),
   ]
@@ -120,7 +99,11 @@ export default function ChatPage() {
               {showDebug ? '隐藏调试' : '显示调试'}
             </button>
             <button
-              onClick={() => { clearMessages(); setStreaming(null); setLastDebug(null) }}
+              onClick={() => {
+                clearMessages()
+                setStreaming(null)
+                setLastDebug(null)
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800"
             >
               <Plus size={16} /> 新对话

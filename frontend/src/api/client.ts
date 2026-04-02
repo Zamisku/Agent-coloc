@@ -29,12 +29,16 @@ export const api = {
   chat: (data: ChatRequest): Promise<ChatResponse> =>
     request('/api/chat', { method: 'POST', body: JSON.stringify(data) }),
 
-  chatStream: (data: ChatRequest, onMessage: (text: string) => void, onDebug: (debug: unknown) => void) => {
+  chatStream: (data: ChatRequest, onMessage: (text: string) => void, onDebug: (debug: unknown) => void, onSessionId?: (sessionId: string) => void) => {
     return fetch(`${BASE}/api/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }).then(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
       const reader = res.body?.getReader()
       const decoder = new TextDecoder()
       if (!reader) return
@@ -49,6 +53,8 @@ export const api = {
           try {
             onDebug(JSON.parse(dataBuffer))
           } catch {}
+        } else if (eventType === 'session_id' && onSessionId) {
+          onSessionId(dataBuffer)
         }
         eventType = ''
         dataBuffer = ''
@@ -62,7 +68,6 @@ export const api = {
 
           for (const line of lines) {
             if (line.startsWith('event:')) {
-              // 如果有之前的 event 但没有遇到空行，先处理它
               if (eventType && dataBuffer) {
                 processEvent()
               }
@@ -70,7 +75,6 @@ export const api = {
             } else if (line.startsWith('data:')) {
               dataBuffer = line.slice(5).trim()
             } else if (line === '') {
-              // 空行表示事件结束
               if (eventType && dataBuffer) {
                 processEvent()
               }

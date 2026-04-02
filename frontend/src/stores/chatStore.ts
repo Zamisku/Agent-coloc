@@ -7,7 +7,9 @@ interface ChatState {
   sessionId: string
   loading: boolean
   sendMessage: (content: string) => Promise<void>
-  sendStreamMessage: (userContent: string, assistantContent: string) => Promise<void>
+  sendStreamMessage: (userContent: string, assistantContent: string, newSessionId?: string) => Promise<void>
+  addMessage: (message: Message) => void
+  updateSessionId: (sessionId: string) => void
   clearMessages: () => void
 }
 
@@ -35,17 +37,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendStreamMessage: async (userContent: string, assistantContent: string) => {
-    // userContent 和 assistantContent 已经在 Chat.tsx 的 handleSend 中通过流式读取收集完毕
-    // 这里直接使用已收集的内容更新 messages
-    set(s => ({
-      messages: [
+  sendStreamMessage: async (userContent: string, assistantContent: string, newSessionId?: string) => {
+    set(s => {
+      const newMessages = [
         ...s.messages,
-        { role: 'user', content: userContent, timestamp: new Date().toISOString() },
-        { role: 'assistant', content: assistantContent, timestamp: new Date().toISOString() },
-      ],
-      loading: false,
+        { role: 'user' as const, content: userContent, timestamp: new Date().toISOString() },
+        { role: 'assistant' as const, content: assistantContent, timestamp: new Date().toISOString() },
+      ]
+      return {
+        messages: newMessages,
+        sessionId: newSessionId || s.sessionId,
+        loading: false,
+      }
+    })
+  },
+
+  addMessage: (message: Message) => {
+    set(s => ({
+      messages: [...s.messages, message],
     }))
+  },
+
+  updateSessionId: (sessionId: string) => {
+    set({ sessionId })
   },
 
   clearMessages: () => set({ messages: [], sessionId: '' }),

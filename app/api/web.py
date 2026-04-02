@@ -56,12 +56,16 @@ async def _stream_generate(state: AgentState) -> AsyncIterator[str]:
         history_str = "\n".join(lines)
 
     messages = [
-        {"role": "system", "content": prompt_manager.get_current_system_prompt("generator")},
-        {"role": "user", "content": prompt_manager.get_current_user_template("generator").format(
-            query=user_query,
-            context=context,
-            chat_history=history_str
-        )},
+        {
+            "role": "system",
+            "content": prompt_manager.get_current_system_prompt("generator"),
+        },
+        {
+            "role": "user",
+            "content": prompt_manager.get_current_user_template("generator").format(
+                query=user_query, context=context, chat_history=history_str
+            ),
+        },
     ]
 
     async for token in llm_client.generate_stream(messages):
@@ -97,7 +101,9 @@ async def chat(request: ChatRequest) -> ChatResponse:
     latency_ms = int((time.time() - start_time) * 1000)
 
     await memory_service.add_message(session_id, "user", unified.content)
-    await memory_service.add_message(session_id, "assistant", result.get("response", ""))
+    await memory_service.add_message(
+        session_id, "assistant", result.get("response", "")
+    )
 
     log = RequestLog(
         session_id=session_id,
@@ -116,13 +122,15 @@ async def chat(request: ChatRequest) -> ChatResponse:
     stats_collector.record_request(log)
 
     sources = []
-    for doc in (result.get("retrieved_docs") or []):
-        sources.append(RetrievedDoc(
-            content=doc.get("content", ""),
-            score=doc.get("score", 0.0),
-            source=doc.get("source", ""),
-            metadata=doc.get("metadata", {}),
-        ))
+    for doc in result.get("retrieved_docs") or []:
+        sources.append(
+            RetrievedDoc(
+                content=doc.get("content", ""),
+                score=doc.get("score", 0.0),
+                source=doc.get("source", ""),
+                metadata=doc.get("metadata", {}),
+            )
+        )
 
     return ChatResponse(
         session_id=session_id,
@@ -145,6 +153,8 @@ async def chat_stream_generator(request: ChatRequest) -> AsyncIterator[dict]:
 
     unified = adapter.to_unified(request.model_dump())
     session_id = unified.session_id
+
+    yield {"event": "session_id", "data": session_id}
 
     history = await memory_service.get_history(session_id)
 
