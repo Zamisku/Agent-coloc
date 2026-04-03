@@ -1,5 +1,9 @@
 """初始化内置 Skills"""
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def init_skills():
     """初始化并注册所有内置 Skills"""
@@ -10,6 +14,8 @@ def init_skills():
     skill_registry.register(SearchDocsSkill())
     skill_registry.register(DateTimeSkill())
     skill_registry.register(WebSearchSkill())
+
+    logger.info("skills_registered", count=len(skill_registry.list_skills()), tools=skill_registry.list_skills())
 
 
 def get_all_tools() -> list[dict]:
