@@ -1,97 +1,154 @@
-import { useEffect, useState } from 'react'
-import type { DebugInfo } from '../types'
+import { useEffect, useState, useRef } from 'react'
+import { Play, RotateCcw, MessageSquare } from 'lucide-react'
+
+interface NodeState {
+  name: string
+  label: string
+  description: string
+}
 
 interface NodeStatus {
   name: string
-  label: string
   status: 'pending' | 'active' | 'completed'
-  description?: string
+  state?: Record<string, unknown>
 }
 
-const WORKFLOW_NODES: { name: string; label: string; description: string }[] = [
+const WORKFLOW_NODES: NodeState[] = [
   { name: 'classify', label: '意图分类', description: '识别用户问题类型' },
   { name: 'rewrite', label: 'Query 改写', description: '优化搜索查询' },
   { name: 'retrieve', label: 'RAG 检索', description: '从知识库检索相关内容' },
   { name: 'evaluate', label: '质量评估', description: '评估检索结果质量' },
   { name: 'generate', label: '答案生成', description: '生成最终回复' },
+  { name: 'tool_call', label: '工具调用', description: '执行工具并返回结果' },
   { name: 'clarify', label: '追问生成', description: '引导用户补充信息' },
   { name: 'fallback', label: '兜底回复', description: '无相关内容时的回复' },
 ]
 
-const BRANCH_NODES = ['generate', 'clarify', 'fallback']
+const MAIN_FLOW = ['classify', 'rewrite', 'retrieve', 'evaluate']
 
-function getInitialNodes(): NodeStatus[] {
-  return WORKFLOW_NODES.map(n => ({
-    ...n,
-    status: 'pending',
-  }))
-}
-
-function updateNodeStatus(nodes: NodeStatus[], activeName: string): NodeStatus[] {
-  const activeIndex = nodes.findIndex(n => n.name === activeName)
-  if (activeIndex === -1) return nodes
-
-  return nodes.map((node, index) => {
-    if (index < activeIndex) return { ...node, status: 'completed' }
-    if (index === activeIndex) return { ...node, status: 'active' }
-    return { ...node, status: 'pending' }
-  })
+function getInitialStatus(): Record<string, NodeStatus> {
+  const status: Record<string, NodeStatus> = {}
+  for (const node of WORKFLOW_NODES) {
+    status[node.name] = { name: node.name, status: 'pending' }
+  }
+  return status
 }
 
 export default function WorkflowPage() {
-  const [nodes, setNodes] = useState<NodeStatus[]>(getInitialNodes())
-  const [currentDebug] = useState<DebugInfo | null>(null)
+  const [nodeStatus, setNodeStatus] = useState<Record<string, NodeStatus>>(getInitialStatus())
+  const [currentState, setCurrentState] = useState<Record<string, unknown> | null>(null)
+  const [query, setQuery] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [latencyMs, setLatencyMs] = useState<number | null>(null)
+  const [response, setResponse] = useState<string | null>(null)
+  const readerRef = useRef<ReadableStreamDefaultReader | null>(null)
+
+  const reset = () => {
+    setNodeStatus(getInitialStatus())
+    setCurrentState(null)
+    setError(null)
+    setLatencyMs(null)
+    setResponse(null)
+  }
+
+  const runWorkflow = async () => {
+    if (!query.trim()) return
+
+    reset()
+    setLoading(true)
+
+    try {
+      const response = await fetch('/api/workflow/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: query }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) throw new Error('No response body')
+      readerRef.current = reader
+
+      let buffer = ''
+
+      const read = async () => {
+        if (!readerRef.current) return
+        const { done, value } = await readerRef.current.read()
+        if (done) return
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+
+          // 跳过 event: 行，只处理 data: 行
+          if (trimmed.startsWith('event:')) {
+            continue
+          }
+
+          if (trimmed.startsWith('data:')) {
+            try {
+              const data = JSON.parse(trimmed.slice(5))
+
+              if (data.status === 'active' || data.status === 'completed') {
+                setNodeStatus(prev => ({
+                  ...prev,
+                  [data.data]: { name: data.data, status: data.status, state: data.state },
+                }))
+              }
+
+              if (data.latency_ms) {
+                setLatencyMs(data.latency_ms)
+              }
+
+              if (data.response) {
+                setResponse(data.response)
+              }
+
+              if (data.state) {
+                setCurrentState(data.state)
+              }
+
+              if (data.intent) {
+                setCurrentState(prev => prev ? { ...prev, intent: data.intent } : null)
+              }
+
+              if (data.error) {
+                setError(data.error)
+              }
+            } catch (e) {
+              // Ignore JSON parse errors for incomplete chunks
+            }
+          }
+        }
+
+        read()
+      }
+
+      read()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '请求失败')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    // 模拟实时更新：每 3 秒轮询一次当前 debug 状态
-    const interval = setInterval(async () => {
-      try {
-        // 这里简化处理，实际应该从全局状态获取
-        // 暂时保持初始状态
-      } catch (e) {
-        console.error('Failed to fetch workflow status:', e)
-      }
-    }, 3000)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  const simulateWorkflow = async () => {
-    setNodes(getInitialNodes())
-
-    for (let i = 0; i < WORKFLOW_NODES.length; i++) {
-      const node = WORKFLOW_NODES[i]
-      setNodes(prev => updateNodeStatus(prev, node.name))
-
-      // 跳过分支节点
-      if (!BRANCH_NODES.includes(node.name)) {
-        await new Promise(resolve => setTimeout(resolve, 800))
-      } else {
-        break
+    return () => {
+      if (readerRef.current) {
+        readerRef.current.cancel()
       }
     }
-
-    // 模拟 evaluate 后的分支
-    setNodes(prev => {
-      const evaluateIndex = prev.findIndex(n => n.name === 'evaluate')
-      if (evaluateIndex === -1) return prev
-
-      return prev.map((node, index) => {
-        if (index < evaluateIndex) return { ...node, status: 'completed' }
-        if (index === evaluateIndex) return { ...node, status: 'completed' }
-        if (node.name === 'generate') return { ...node, status: 'active' }
-        return node
-      })
-    })
-
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // 完成 generate
-    setNodes(prev => prev.map(n => ({
-      ...n,
-      status: n.status === 'active' ? 'completed' : n.status,
-    })))
-  }
+  }, [])
 
   const statusStyles = {
     pending: 'bg-gray-100 text-gray-400 border-gray-200',
@@ -111,16 +168,35 @@ export default function WorkflowPage() {
         <h1 className="font-bold text-lg">工作流程</h1>
         <div className="flex gap-2">
           <button
-            onClick={() => setNodes(getInitialNodes())}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+            onClick={reset}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
           >
-            重置
+            <RotateCcw size={14} /> 重置
           </button>
+        </div>
+      </div>
+
+      {/* 输入区域 */}
+      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+        <div className="flex gap-2 max-w-3xl">
+          <div className="flex-1 relative">
+            <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !loading && runWorkflow()}
+              placeholder="输入测试问题..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
           <button
-            onClick={simulateWorkflow}
-            className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            onClick={runWorkflow}
+            disabled={loading || !query.trim()}
+            className="flex items-center gap-1.5 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
-            模拟运行
+            <Play size={14} />
+            {loading ? '执行中...' : '执行'}
           </button>
         </div>
       </div>
@@ -131,22 +207,22 @@ export default function WorkflowPage() {
           <div className="mb-12">
             <h2 className="text-sm font-medium text-gray-500 mb-4">主流程</h2>
             <div className="flex items-center justify-between">
-              {WORKFLOW_NODES.filter(n => !BRANCH_NODES.includes(n.name)).map((node, index, arr) => (
+              {WORKFLOW_NODES.filter(n => MAIN_FLOW.includes(n.name)).map((node, index, arr) => (
                 <div key={node.name} className="flex items-center">
                   <div className="flex flex-col items-center">
                     <div
-                      className={`w-20 h-20 rounded-2xl border-2 flex flex-col items-center justify-center transition-all duration-300 ${statusStyles[nodes.find(n => n.name === node.name)?.status || 'pending']}`}
+                      className={`w-20 h-20 rounded-2xl border-2 flex flex-col items-center justify-center transition-all duration-300 ${statusStyles[nodeStatus[node.name]?.status || 'pending']}`}
                     >
                       <span className="text-xs font-medium">{node.label}</span>
-                      {nodes.find(n => n.name === node.name)?.status !== 'pending' && (
-                        <span className="text-lg mt-1">{statusIcons[nodes.find(n => n.name === node.name)?.status || 'pending']}</span>
+                      {nodeStatus[node.name]?.status !== 'pending' && (
+                        <span className="text-lg mt-1">{statusIcons[nodeStatus[node.name]?.status || 'pending']}</span>
                       )}
                     </div>
                     <span className="text-xs text-gray-400 mt-2 max-w-[80px] text-center">{node.description}</span>
                   </div>
                   {index < arr.length - 1 && (
                     <div className="w-12 h-0.5 bg-gray-200 mx-2">
-                      <div className={`h-full bg-green-500 transition-all duration-300 ${nodes.find(n => n.name === node.name)?.status === 'completed' ? 'w-full' : 'w-0'}`} />
+                      <div className={`h-full bg-green-500 transition-all duration-300 ${nodeStatus[node.name]?.status === 'completed' ? 'w-full' : 'w-0'}`} />
                     </div>
                   )}
                 </div>
@@ -158,15 +234,14 @@ export default function WorkflowPage() {
           <div>
             <h2 className="text-sm font-medium text-gray-500 mb-4">评估分支</h2>
             <div className="flex items-center justify-center gap-8">
-              {/* Arrow from evaluate */}
               <div className="flex items-center">
-                <div className={`w-20 h-0.5 transition-all duration-300 ${nodes.find(n => n.name === 'evaluate')?.status === 'completed' ? 'bg-green-500' : 'bg-gray-200'}`} />
+                <div className={`w-20 h-0.5 transition-all duration-300 ${nodeStatus['evaluate']?.status === 'completed' ? 'bg-green-500' : 'bg-gray-200'}`} />
               </div>
 
               {['generate', 'clarify', 'fallback'].map((branchName, branchIndex) => {
                 const branchNode = WORKFLOW_NODES.find(n => n.name === branchName)!
-                const status = nodes.find(n => n.name === branchName)?.status || 'pending'
-                const isActive = nodes.find(n => n.name === 'evaluate')?.status === 'completed'
+                const status = nodeStatus[branchName]?.status || 'pending'
+                const isActive = nodeStatus['evaluate']?.status === 'completed'
 
                 return (
                   <div key={branchName} className="flex flex-col items-center">
@@ -206,11 +281,31 @@ export default function WorkflowPage() {
             </div>
           </div>
 
-          {/* Debug 信息 */}
-          {currentDebug && (
+          {/* 当前状态 */}
+          {currentState && Object.keys(currentState).length > 0 && (
             <div className="mt-8 p-4 bg-gray-900 text-white rounded-xl text-sm font-mono">
               <div className="text-gray-400 mb-2">当前状态:</div>
-              <pre>{JSON.stringify(currentDebug, null, 2)}</pre>
+              <pre className="whitespace-pre-wrap">{JSON.stringify(currentState, null, 2)}</pre>
+            </div>
+          )}
+
+          {/* 错误 */}
+          {error && (
+            <div className="mt-8 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl">
+              <div className="font-medium mb-1">执行错误</div>
+              <div className="text-sm">{error}</div>
+            </div>
+          )}
+
+          {/* 响应结果 */}
+          {response && (
+            <div className="mt-8">
+              <div className="text-sm font-medium text-gray-500 mb-2">
+                生成结果 {latencyMs !== null && `(${latencyMs}ms)`}
+              </div>
+              <div className="p-4 bg-white border border-gray-200 rounded-xl text-sm whitespace-pre-wrap">
+                {response}
+              </div>
             </div>
           )}
         </div>

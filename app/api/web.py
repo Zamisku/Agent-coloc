@@ -233,3 +233,133 @@ async def chat_stream_generator(request: ChatRequest) -> AsyncIterator[dict]:
 @router.post("/chat/stream")
 async def chat_stream(request: ChatRequest) -> EventSourceResponse:
     return EventSourceResponse(chat_stream_generator(request))
+
+
+# === Workflow 路由 ===
+
+@router.post("/workflow/stream")
+async def workflow_stream(request: ChatRequest) -> EventSourceResponse:
+    """工作流实时流式输出，包含每个节点的执行状态"""
+
+    async def workflow_generator(request: ChatRequest) -> AsyncIterator[dict]:
+        from app.agent.nodes import (
+            classify_intent,
+            rewrite_query,
+            retrieve_docs,
+            evaluate_results,
+            generate_answer,
+            ask_clarification,
+            fallback_response,
+            call_tools,
+        )
+        from app.agent.graph import _route_after_classify, _route_by_quality, _route_after_generate
+        from app.models.schemas import END
+
+        start_time = time.time()
+
+        unified = adapter.to_unified(request.model_dump())
+        session_id = unified.session_id
+
+        yield {"event": "session_id", "data": session_id}
+        yield {"event": "node", "data": "classify", "status": "active"}
+
+        history = await memory_service.get_history(session_id)
+
+        state: AgentState = {
+            "session_id": session_id,
+            "user_query": unified.content,
+            "chat_history": history,
+            "intent": None,
+            "domain": None,
+            "rewritten_query": None,
+            "retrieved_docs": None,
+            "top_relevance_score": None,
+            "retrieval_quality": None,
+            "response": None,
+            "sources": [],
+            "need_clarification": False,
+            "user_intent": unified.metadata.get('user_intent'),
+            "intent_mode": unified.metadata.get('intent_mode'),
+            "intent_rejected": False,
+        }
+
+        try:
+            # Classify
+            state = await classify_intent(state)
+            yield {"event": "node", "data": "classify", "status": "completed", "state": _safe_state(state)}
+
+            # Route
+            next_node = _route_after_classify(state)
+            if next_node == "fallback":
+                yield {"event": "node", "data": "fallback", "status": "active"}
+                state = await fallback_response(state)
+                yield {"event": "node", "data": "fallback", "status": "completed", "state": _safe_state(state)}
+            else:
+                # Rewrite
+                yield {"event": "node", "data": "rewrite", "status": "active"}
+                state = await rewrite_query(state)
+                yield {"event": "node", "data": "rewrite", "status": "completed", "state": _safe_state(state)}
+
+                # Retrieve
+                yield {"event": "node", "data": "retrieve", "status": "active"}
+                state = await retrieve_docs(state)
+                yield {"event": "node", "data": "retrieve", "status": "completed", "state": _safe_state(state)}
+
+                # Evaluate
+                yield {"event": "node", "data": "evaluate", "status": "active"}
+                state = await evaluate_results(state)
+                yield {"event": "node", "data": "evaluate", "status": "completed", "state": _safe_state(state)}
+
+                # Route by quality
+                quality = state.get("retrieval_quality", "no_result")
+                next_node = _route_by_quality(state)
+
+                if next_node == "generate":
+                    # 可能多轮 tool_call
+                    while True:
+                        yield {"event": "node", "data": "generate", "status": "active"}
+                        state = await generate_answer(state)
+                        yield {"event": "node", "data": "generate", "status": "completed", "state": _safe_state(state)}
+
+                        tool_calls = state.get("tool_calls")
+                        if tool_calls:
+                            yield {"event": "node", "data": "tool_call", "status": "active"}
+                            state = await call_tools(state)
+                            yield {"event": "node", "data": "tool_call", "status": "completed", "state": _safe_state(state)}
+                        else:
+                            break
+
+                elif next_node == "clarify":
+                    yield {"event": "node", "data": "clarify", "status": "active"}
+                    state = await ask_clarification(state)
+                    yield {"event": "node", "data": "clarify", "status": "completed", "state": _safe_state(state)}
+
+                else:
+                    yield {"event": "node", "data": "fallback", "status": "active"}
+                    state = await fallback_response(state)
+                    yield {"event": "node", "data": "fallback", "status": "completed", "state": _safe_state(state)}
+
+            latency_ms = int((time.time() - start_time) * 1000)
+            yield {
+                "event": "done",
+                "data": "",
+                "latency_ms": latency_ms,
+                "response": state.get("response", ""),
+            }
+
+        except Exception as e:
+            yield {"event": "error", "data": str(e)}
+
+    return EventSourceResponse(workflow_generator(request))
+
+
+def _safe_state(state: AgentState) -> dict:
+    """提取可用于调试的状态信息"""
+    return {
+        "intent": state.get("intent"),
+        "domain": state.get("domain"),
+        "rewritten_query": state.get("rewritten_query"),
+        "retrieval_quality": state.get("retrieval_quality"),
+        "top_relevance_score": state.get("top_relevance_score"),
+        "tool_calls": state.get("tool_calls"),
+    }
