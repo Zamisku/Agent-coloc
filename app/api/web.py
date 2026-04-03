@@ -36,12 +36,25 @@ def _format_chat_history(history: list[dict], max_rounds: int = 10) -> str:
     return "\n".join(lines)
 
 
+DIRECT_LLM_SYSTEM_PROMPT = """你是一个友好的AI助手。请直接回答用户的问题，不要输出任何推理过程、思考内容或中间步骤，只输出最终的回答。"""
+
+DIRECT_LLM_USER_TEMPLATE = """对话历史：
+{chat_history}
+
+用户问题：{query}
+
+请直接回答："""
+
+
 async def _direct_llm_chat(user_query: str, chat_history: list[dict]) -> str:
     """直接调用 LLM 对话，不使用系统提示词和 Agent 流程"""
     history_str = _format_chat_history(chat_history)
 
     messages = [
-        {"role": "user", "content": f"对话历史：\n{history_str}\n\n用户问题：{user_query}"}
+        {"role": "system", "content": DIRECT_LLM_SYSTEM_PROMPT},
+        {"role": "user", "content": DIRECT_LLM_USER_TEMPLATE.format(
+            chat_history=history_str, query=user_query
+        )},
     ]
 
     response = await llm_client.generate(messages, temperature=0.7)
@@ -53,7 +66,10 @@ async def _stream_direct_llm_chat(user_query: str, chat_history: list[dict]) -> 
     history_str = _format_chat_history(chat_history)
 
     messages = [
-        {"role": "user", "content": f"对话历史：\n{history_str}\n\n用户问题：{user_query}"}
+        {"role": "system", "content": DIRECT_LLM_SYSTEM_PROMPT},
+        {"role": "user", "content": DIRECT_LLM_USER_TEMPLATE.format(
+            chat_history=history_str, query=user_query
+        )},
     ]
 
     async for token in llm_client.generate_stream(messages):
