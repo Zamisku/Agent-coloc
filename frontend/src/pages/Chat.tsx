@@ -40,9 +40,6 @@ export default function ChatPage() {
   const handleSend = async (content: string, intent?: string, intentMode?: 'auto' | 'force' | 'suggest') => {
     const currentSessionId = sessionId || undefined
 
-    // 立即添加用户消息
-    addMessage({ role: 'user', content, timestamp: new Date().toISOString() })
-
     setStreaming({ text: '', debug: null, done: false, error: null })
     setLastDebug(null)
 
