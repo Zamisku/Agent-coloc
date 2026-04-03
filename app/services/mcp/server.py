@@ -38,9 +38,9 @@ class MCPServer:
         skill_tools = get_all_tools()
         self._tools = [
             {
-                "name": t["name"],
-                "description": t["description"],
-                "inputSchema": t["parameters"],
+                "name": t["function"]["name"],
+                "description": t["function"]["description"],
+                "inputSchema": t["function"]["parameters"],
             }
             for t in skill_tools
         ]

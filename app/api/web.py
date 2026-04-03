@@ -347,6 +347,10 @@ async def workflow_stream(request: ChatRequest) -> EventSourceResponse:
                 "response": state.get("response", ""),
             }
 
+            # 保存对话记忆
+            await memory_service.add_message(session_id, "user", unified.content)
+            await memory_service.add_message(session_id, "assistant", state.get("response", ""))
+
         except Exception as e:
             yield {"event": "error", "data": str(e)}
 
