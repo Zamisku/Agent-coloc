@@ -223,6 +223,13 @@ CONFIG_SCHEMA = {
         "description": "开启后在对话界面显示意图选择器（开发人员用）",
         "default": "true",
     },
+    "SYSTEM_PROMPT_ENABLED": {
+        "group": "对话配置",
+        "label": "启用系统提示词",
+        "type": "boolean",
+        "description": "关闭后切换为纯 LLM 对话模式，跳过 Agent 流程",
+        "default": "true",
+    },
 }
 
 

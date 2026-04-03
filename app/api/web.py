@@ -17,10 +17,47 @@ from app.services.memory import memory_service
 from app.services.llm_client import llm_client
 from app.services.stats_collector import stats_collector
 from app.services.prompt_manager import prompt_manager
+from app.services.config_manager import config_manager
 
 
 router = APIRouter(prefix="/api", tags=["chat"])
 adapter = WebAdapter()
+
+
+def _format_chat_history(history: list[dict], max_rounds: int = 10) -> str:
+    """格式化对话历史"""
+    if not history:
+        return "（无历史对话）"
+    recent = history[-max_rounds * 2:]
+    lines = []
+    for msg in recent:
+        role = "用户" if msg.get("role") == "user" else "助手"
+        lines.append(f"{role}：{msg.get('content', '')}")
+    return "\n".join(lines)
+
+
+async def _direct_llm_chat(user_query: str, chat_history: list[dict]) -> str:
+    """直接调用 LLM 对话，不使用系统提示词和 Agent 流程"""
+    history_str = _format_chat_history(chat_history)
+
+    messages = [
+        {"role": "user", "content": f"对话历史：\n{history_str}\n\n用户问题：{user_query}"}
+    ]
+
+    response = await llm_client.generate(messages, temperature=0.7)
+    return response.strip()
+
+
+async def _stream_direct_llm_chat(user_query: str, chat_history: list[dict]) -> AsyncIterator[str]:
+    """直接流式调用 LLM 对话，不使用系统提示词"""
+    history_str = _format_chat_history(chat_history)
+
+    messages = [
+        {"role": "user", "content": f"对话历史：\n{history_str}\n\n用户问题：{user_query}"}
+    ]
+
+    async for token in llm_client.generate_stream(messages):
+        yield token
 
 
 async def _run_planning_phase(state: AgentState) -> AgentState:
@@ -80,6 +117,39 @@ async def chat(request: ChatRequest) -> ChatResponse:
     session_id = unified.session_id
 
     history = await memory_service.get_history(session_id)
+
+    # 检查是否启用系统提示词模式
+    if not config_manager.get_bool("SYSTEM_PROMPT_ENABLED"):
+        # 直接 LLM 对话模式
+        response_text = await _direct_llm_chat(unified.content, history)
+        latency_ms = int((time.time() - start_time) * 1000)
+
+        await memory_service.add_message(session_id, "user", unified.content)
+        await memory_service.add_message(session_id, "assistant", response_text)
+
+        log = RequestLog(
+            session_id=session_id,
+            user_query=unified.content,
+            intent=None,
+            domain=None,
+            rewritten_query=None,
+            retrieval_scores=[],
+            response_text=response_text,
+            total_latency_ms=latency_ms,
+            llm_calls=1,
+            timestamp=datetime.now(),
+        )
+        stats_collector.record_request(log)
+
+        return ChatResponse(
+            session_id=session_id,
+            reply=response_text,
+            sources=[],
+            intent=None,
+            debug={"latency_ms": latency_ms},
+        )
+
+    # 正常的 Agent 流程模式
     pending_slot = await memory_service.get_pending_slot(session_id)
 
     initial_state: AgentState = {
@@ -162,6 +232,39 @@ async def chat_stream_generator(request: ChatRequest) -> AsyncIterator[dict]:
     yield {"event": "session_id", "data": session_id}
 
     history = await memory_service.get_history(session_id)
+
+    # 检查是否启用系统提示词模式
+    if not config_manager.get_bool("SYSTEM_PROMPT_ENABLED"):
+        # 直接 LLM 对话模式
+        response_text = ""
+        async for token in _stream_direct_llm_chat(unified.content, history):
+            response_text += token
+            yield {"event": "message", "data": token}
+
+        await memory_service.add_message(session_id, "user", unified.content)
+        await memory_service.add_message(session_id, "assistant", response_text)
+
+        latency_ms = int((time.time() - start_time) * 1000)
+
+        log = RequestLog(
+            session_id=session_id,
+            user_query=unified.content,
+            intent=None,
+            domain=None,
+            rewritten_query=None,
+            retrieval_scores=[],
+            response_text=response_text,
+            total_latency_ms=latency_ms,
+            llm_calls=1,
+            timestamp=datetime.now(),
+        )
+        stats_collector.record_request(log)
+
+        yield {"event": "debug", "data": {"latency_ms": latency_ms}}
+        yield {"event": "done", "data": ""}
+        return
+
+    # 正常的 Agent 流程模式
     pending_slot = await memory_service.get_pending_slot(session_id)
 
     initial_state: AgentState = {
