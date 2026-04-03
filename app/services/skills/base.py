@@ -52,6 +52,7 @@ class BaseSkill(ABC):
                 required.append(param["name"])
 
         return {
+            "type": "object",
             "name": self.name,
             "description": self.description,
             "parameters": {
