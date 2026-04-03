@@ -82,21 +82,36 @@ async def generate_answer(state: AgentState) -> AgentState:
     # 检查是否有工具调用
     if isinstance(result, dict) and result.get("tool_calls"):
         tool_calls = result["tool_calls"]
+        # 转换为 OpenAI API 格式
+        openai_tool_calls = [
+            {
+                "id": tc.get("id", ""),
+                "type": "function",
+                "function": {
+                    "name": tc.get("name", ""),
+                    "arguments": tc.get("arguments", ""),
+                }
+            }
+            for tc in tool_calls
+        ]
+        # 构建带 tool_calls 的 assistant 消息
+        assistant_message = {
+            "role": "assistant",
+            "content": result.get("content", ""),
+            "tool_calls": openai_tool_calls,
+        }
+
         # 只有在没有 existing_messages 时才追加新的 assistant 消息
-        # 因为 existing_messages 已经包含了之前的 assistant 消息
         if not existing_messages:
-            messages.append({
-                "role": "assistant",
-                "content": result.get("content", ""),
-                "tool_calls": tool_calls,
-            })
+            messages.append(assistant_message)
+        # else: existing_messages 已经包含了之前的对话历史，直接使用
 
         return {
             "response": None,  # 还没有最终回复，需要执行工具后再生成
             "sources": [],
             "need_clarification": False,
-            "tool_calls": tool_calls,
-            "messages": messages,  # 保存消息历史
+            "tool_calls": openai_tool_calls,
+            "messages": messages + [assistant_message] if existing_messages else messages,
         }
     else:
         # 普通回复

@@ -2,7 +2,7 @@ from app.models.schemas import IntentType
 from app.services.config_manager import config_manager
 
 
-SKIP_EVALUATE_INTENTS = {IntentType.chitchat.value, IntentType.out_of_scope.value}
+SKIP_EVALUATE_INTENTS = {IntentType.out_of_scope.value}
 
 
 async def evaluate_results(state: dict) -> dict:
@@ -15,6 +15,10 @@ async def evaluate_results(state: dict) -> dict:
 
     if intent in SKIP_EVALUATE_INTENTS:
         return {"retrieval_quality": "no_result", "top_relevance_score": None}
+
+    # chitchat 不依赖 RAG 结果，直接标记为 sufficient
+    if intent == IntentType.chitchat.value:
+        return {"retrieval_quality": "sufficient", "top_relevance_score": 0}
 
     if not retrieved_docs:
         return {"retrieval_quality": "no_result", "top_relevance_score": None}
