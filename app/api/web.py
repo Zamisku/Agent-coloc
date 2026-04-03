@@ -80,6 +80,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
     session_id = unified.session_id
 
     history = await memory_service.get_history(session_id)
+    pending_slot = await memory_service.get_pending_slot(session_id)
 
     initial_state: AgentState = {
         "session_id": session_id,
@@ -97,6 +98,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
         "user_intent": unified.metadata.get('user_intent'),
         "intent_mode": unified.metadata.get('intent_mode'),
         "intent_rejected": False,
+        "pending_slot": pending_slot,
     }
 
     result = await _run_planning_phase(initial_state)
@@ -160,6 +162,7 @@ async def chat_stream_generator(request: ChatRequest) -> AsyncIterator[dict]:
     yield {"event": "session_id", "data": session_id}
 
     history = await memory_service.get_history(session_id)
+    pending_slot = await memory_service.get_pending_slot(session_id)
 
     initial_state: AgentState = {
         "session_id": session_id,
@@ -177,6 +180,7 @@ async def chat_stream_generator(request: ChatRequest) -> AsyncIterator[dict]:
         "user_intent": unified.metadata.get('user_intent'),
         "intent_mode": unified.metadata.get('intent_mode'),
         "intent_rejected": False,
+        "pending_slot": pending_slot,
     }
 
     result = await _run_planning_phase(initial_state)
@@ -264,6 +268,7 @@ async def workflow_stream(request: ChatRequest) -> EventSourceResponse:
         yield {"event": "node", "data": "classify", "status": "active"}
 
         history = await memory_service.get_history(session_id)
+        pending_slot = await memory_service.get_pending_slot(session_id)
 
         state: AgentState = {
             "session_id": session_id,
@@ -281,6 +286,7 @@ async def workflow_stream(request: ChatRequest) -> EventSourceResponse:
             "user_intent": unified.metadata.get('user_intent'),
             "intent_mode": unified.metadata.get('intent_mode'),
             "intent_rejected": False,
+            "pending_slot": pending_slot,
         }
 
         try:

@@ -19,6 +19,7 @@ async def classify_intent(state: dict) -> dict:
     chat_history = state.get("chat_history", [])
     user_intent = state.get("user_intent")
     intent_mode = state.get("intent_mode")
+    pending_slot = state.get("pending_slot")
 
     # Force 模式: 直接使用用户指定的意图，跳过 LLM 调用
     if intent_mode == 'force' and user_intent:
@@ -33,6 +34,17 @@ async def classify_intent(state: dict) -> dict:
             }
         domain = INTENT_TO_DOMAIN.get(IntentType(intent), DomainType.general).value
         return {"intent": intent, "domain": domain, "intent_rejected": False}
+
+    # Slot 填充模式: 用户正在回答追问，直接使用 pending_slot 中的原始意图
+    if pending_slot and not user_intent:
+        original_intent = pending_slot.get("original_intent", "score_query")
+        intent = original_intent
+        domain = INTENT_TO_DOMAIN.get(IntentType(intent), DomainType.general).value
+        return {
+            "intent": intent,
+            "domain": domain,
+            "intent_rejected": False,
+        }
 
     history_str = _format_history(chat_history)
     messages = [

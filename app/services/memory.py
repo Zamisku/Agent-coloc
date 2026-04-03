@@ -19,6 +19,9 @@ class MemoryService:
     def _key(self, session_id: str) -> str:
         return f"memory:{session_id}"
 
+    def _slot_key(self, session_id: str) -> str:
+        return f"pending_slot:{session_id}"
+
     async def get_history(self, session_id: str) -> list[dict]:
         client = await self._get_client()
         data = await client.get(self._key(session_id))
@@ -31,11 +34,15 @@ class MemoryService:
         session_id: str,
         role: str,
         content: str,
+        metadata: dict | None = None,
     ) -> None:
         client = await self._get_client()
         history = await self.get_history(session_id)
 
-        history.append({"role": role, "content": content})
+        msg = {"role": role, "content": content}
+        if metadata:
+            msg["metadata"] = metadata
+        history.append(msg)
 
         max_rounds = config_manager.get_int("MEMORY_MAX_ROUNDS")
         max_messages = max_rounds * 2
@@ -49,9 +56,25 @@ class MemoryService:
             json.dumps(history, ensure_ascii=False),
         )
 
+    async def get_pending_slot(self, session_id: str) -> dict | None:
+        client = await self._get_client()
+        data = await client.get(self._slot_key(session_id))
+        if not data:
+            return None
+        return json.loads(data)
+
+    async def set_pending_slot(self, session_id: str, slot: dict | None) -> None:
+        client = await self._get_client()
+        ttl = config_manager.get_int("MEMORY_TTL")
+        if slot:
+            await client.setex(self._slot_key(session_id), ttl, json.dumps(slot, ensure_ascii=False))
+        else:
+            await client.delete(self._slot_key(session_id))
+
     async def clear_history(self, session_id: str) -> None:
         client = await self._get_client()
         await client.delete(self._key(session_id))
+        await client.delete(self._slot_key(session_id))
 
     async def close(self) -> None:
         if self._client is not None:

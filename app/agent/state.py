@@ -24,3 +24,5 @@ class AgentState(TypedDict, total=False):
     user_intent: Optional[str]  # 用户指定的意图
     intent_mode: Optional[str]  # 'auto' | 'force' | 'suggest'
     intent_rejected: bool  # 强制意图无效时被拒绝
+    # Slot filling support
+    pending_slot: Optional[dict]  # 等待填充的槽位 {"slot_name": str, "original_query": str, "question": str}

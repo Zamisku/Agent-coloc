@@ -114,6 +114,7 @@ async def run_agent(
         "tool_calls": None,
         "tool_results": None,
         "messages": None,
+        "pending_slot": None,
     }
     result = await agent_graph.ainvoke(initial_state)
     return result
