@@ -73,11 +73,14 @@ export default function ChatPage() {
 
       setStreaming({ text: fullText, debug: lastDebug, done: true, error: null })
       sendStreamMessage(content, fullText, newSessionId)
+      // 延迟重置 streaming 状态，确保 UI 有时间显示最后的内容
+      setTimeout(() => setStreaming(null), 100)
     } catch (e) {
       console.error('Chat error:', e)
       const errorMessage = e instanceof Error ? e.message : '未知错误'
       setStreaming({ text: '', debug: null, done: true, error: errorMessage })
       addMessage({ role: 'assistant', content: `抱歉，发生了错误：${errorMessage}，请重试。`, timestamp: new Date().toISOString() })
+      setTimeout(() => setStreaming(null), 100)
     }
   }
 
