@@ -38,7 +38,7 @@ class BaseSkill(ABC):
         pass
 
     def get_schema(self) -> dict:
-        """获取 JSON Schema 格式的参数定义"""
+        """获取 JSON Schema 格式的参数定义（OpenAI tool format）"""
         properties = {}
         required = []
         for param in self.parameters:
@@ -52,12 +52,14 @@ class BaseSkill(ABC):
                 required.append(param["name"])
 
         return {
-            "type": "object",
-            "name": self.name,
-            "description": self.description,
-            "parameters": {
-                "type": "object",
-                "properties": properties,
-                "required": required,
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                },
             },
         }
