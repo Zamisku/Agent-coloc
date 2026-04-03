@@ -4,11 +4,12 @@
 def init_skills():
     """初始化并注册所有内置 Skills"""
     from app.services.skills.registry import skill_registry
-    from app.services.skills.builtin import SearchDocsSkill, DateTimeSkill
+    from app.services.skills.builtin import SearchDocsSkill, DateTimeSkill, WebSearchSkill
 
     # 注册内置 Skills
     skill_registry.register(SearchDocsSkill())
     skill_registry.register(DateTimeSkill())
+    skill_registry.register(WebSearchSkill())
 
 
 def get_all_tools() -> list[dict]:
