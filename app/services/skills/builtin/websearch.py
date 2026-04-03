@@ -1,8 +1,6 @@
-import httpx
-
 from app.services.skills.base import BaseSkill, SkillResult
 from app.services.skills.registry import register_skill
-from app.services.config_manager import config_manager
+from app.services.mcp.client import get_minimax_client
 
 
 @register_skill
@@ -31,55 +29,35 @@ class WebSearchSkill(BaseSkill):
             }
 
         try:
-            api_key = config_manager.get("PROVIDER_MINIMAX_API_KEY")
-            if not api_key or api_key == "...":
-                return {
-                    "success": False,
-                    "result": None,
-                    "error": "MiniMax API Key 未配置，请在系统设置中配置",
-                }
+            client = await get_minimax_client()
+            result = await client.call_tool("web_search", {"query": query})
 
-            base_url = config_manager.get("PROVIDER_MINIMAX_BASE_URL") or "https://api.minimaxi.com"
-            model = config_manager.get("PROVIDER_MINIMAX_MODEL") or "MiniMax-M2.7"
-
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{base_url}/mcp/web_search",
-                    json={"query": query},
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                )
-                response.raise_for_status()
-                data = response.json()
-
-                # 解析搜索结果
-                results = data.get("results", [])
-                if not results:
-                    return {
-                        "success": True,
-                        "result": "未找到相关搜索结果",
-                        "error": None,
-                    }
-
-                formatted_results = []
-                for i, item in enumerate(results[:5], 1):
-                    title = item.get("title", "")
-                    url = item.get("url", "")
-                    snippet = item.get("snippet", "")
-                    formatted_results.append(f"[{i}] {title}\n{snippet}\n来源：{url}")
-
+            # 解析 MCP 返回结果
+            content = result.get("content", [])
+            if not content:
                 return {
                     "success": True,
-                    "result": "\n\n".join(formatted_results),
+                    "result": "未找到相关搜索结果",
                     "error": None,
                 }
-        except httpx.HTTPStatusError as e:
+
+            # 提取文本内容
+            text = ""
+            for item in content:
+                if item.get("type") == "text":
+                    text += item.get("text", "")
+
+            if not text:
+                return {
+                    "success": True,
+                    "result": "未找到相关搜索结果",
+                    "error": None,
+                }
+
             return {
-                "success": False,
-                "result": None,
-                "error": f"搜索请求失败: HTTP {e.response.status_code}",
+                "success": True,
+                "result": text,
+                "error": None,
             }
         except Exception as e:
             return {
