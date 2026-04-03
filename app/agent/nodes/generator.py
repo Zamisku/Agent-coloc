@@ -82,12 +82,14 @@ async def generate_answer(state: AgentState) -> AgentState:
     # 检查是否有工具调用
     if isinstance(result, dict) and result.get("tool_calls"):
         tool_calls = result["tool_calls"]
-        # 更新消息历史
-        messages.append({
-            "role": "assistant",
-            "content": result.get("content", ""),
-            "tool_calls": tool_calls,
-        })
+        # 只有在没有 existing_messages 时才追加新的 assistant 消息
+        # 因为 existing_messages 已经包含了之前的 assistant 消息
+        if not existing_messages:
+            messages.append({
+                "role": "assistant",
+                "content": result.get("content", ""),
+                "tool_calls": tool_calls,
+            })
 
         return {
             "response": None,  # 还没有最终回复，需要执行工具后再生成
