@@ -36,18 +36,31 @@ def _format_chat_history(history: list[dict], max_rounds: int = 10) -> str:
     return "\n".join(lines)
 
 
-DIRECT_LLM_SYSTEM_PROMPT = """你是一个友好的AI助手。请直接回答用户的问题，不要输出任何推理过程、思考内容或中间步骤，只输出最终的回答。"""
+DIRECT_LLM_SYSTEM_PROMPT = """你是一个友好的AI助手。请直接用中文回答用户的问题。
+
+**重要要求：**
+1. 不要输出任何推理过程、思考内容或中间步骤
+2. 只输出最终的回答
+3. 你的回答必须是一个合法的 JSON 对象，格式如下：
+{"answer": "这里是对用户问题的回答"}
+
+请严格按照上述 JSON 格式输出，不要包含任何其他内容。"""
 
 DIRECT_LLM_USER_TEMPLATE = """对话历史：
 {chat_history}
 
 用户问题：{query}
 
-请直接回答："""
+请输出回答："""
+
+# 结构化输出格式
+RESPONSE_FORMAT = {"type": "json_object"}
 
 
 async def _direct_llm_chat(user_query: str, chat_history: list[dict]) -> str:
     """直接调用 LLM 对话，不使用系统提示词和 Agent 流程"""
+    import json
+
     history_str = _format_chat_history(chat_history)
 
     messages = [
@@ -57,8 +70,22 @@ async def _direct_llm_chat(user_query: str, chat_history: list[dict]) -> str:
         )},
     ]
 
-    response = await llm_client.generate(messages, temperature=0.7)
-    return response.strip()
+    try:
+        response = await llm_client.generate(
+            messages,
+            temperature=0.7,
+            response_format=RESPONSE_FORMAT
+        )
+        if isinstance(response, dict):
+            return response.get("content", "").strip()
+        # 尝试解析 JSON
+        data = json.loads(response)
+        return data.get("answer", response).strip()
+    except (json.JSONDecodeError, KeyError):
+        # 如果解析失败，返回原始响应
+        if isinstance(response, str):
+            return response.strip()
+        return str(response).strip()
 
 
 async def _stream_direct_llm_chat(user_query: str, chat_history: list[dict]) -> AsyncIterator[str]:
@@ -72,7 +99,11 @@ async def _stream_direct_llm_chat(user_query: str, chat_history: list[dict]) -> 
         )},
     ]
 
-    async for token in llm_client.generate_stream(messages):
+    async for token in llm_client.generate_stream(
+        messages,
+        temperature=0.7,
+        response_format=RESPONSE_FORMAT
+    ):
         yield token
 
 

@@ -41,6 +41,7 @@ class BaseProvider(ABC):
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: list[dict] | None = None,
+        response_format: dict | None = None,
     ) -> str | dict:
         temp = temperature if temperature is not None else self.temperature
         maxt = max_tokens if max_tokens is not None else self.max_tokens
@@ -54,6 +55,8 @@ class BaseProvider(ABC):
         }
         if tools:
             kwargs["tools"] = tools
+        if response_format:
+            kwargs["response_format"] = response_format
 
         response = await client.chat.completions.create(**kwargs)
 
@@ -78,6 +81,7 @@ class BaseProvider(ABC):
         messages: list[dict],
         temperature: float | None = None,
         tools: list[dict] | None = None,
+        response_format: dict | None = None,
     ) -> AsyncIterator[str | dict]:
         temp = temperature if temperature is not None else self.temperature
 
@@ -90,6 +94,8 @@ class BaseProvider(ABC):
         }
         if tools:
             kwargs["tools"] = tools
+        if response_format:
+            kwargs["response_format"] = response_format
 
         stream = await client.chat.completions.create(**kwargs)
 
